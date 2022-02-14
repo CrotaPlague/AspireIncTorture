@@ -1,0 +1,4 @@
+Make it so that it says what move each mob does.
+Make it so that it can use any type of move.
+Make the item class. Make enums for each item type which will help organize it inside of the bag for catogories.
+Then after making the classes, after getting the moves to work, allow items to be used.

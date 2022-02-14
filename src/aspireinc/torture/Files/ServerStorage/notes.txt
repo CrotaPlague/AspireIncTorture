@@ -1,0 +1,9 @@
+leveling requirements system UwU:
+
+let L equal the level
+x = 1.047 ^ (L^1.2);
+
+leveling give system:
+Let L equal enemy level, and P be the killer level
+
+
