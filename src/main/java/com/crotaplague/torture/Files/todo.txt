@@ -1,0 +1,9 @@
+If player leaves while in a cutscene kill the entities
+Add an option to set where the player will be teleported to after a cutscene ends
+Add an option to make an entity in cutscenes disguises as the player (allow it to be controlled in the same way by the tie)
+For the camera, make the player spectate an armorstand or some other frozen mob so that they player can't move around their camera that much
+    (PlayerStopSpectatingEntityEvent in case the player tries to escape. also lock them in spectator mode)
+If you see instances of Trainer usage in doRound or other stuff, try to purge it, as that won't work if in a wild battle
+Also, try to implement a PvE double battle, just to see how broken that is
+
+clean the fucking code up top priority :3

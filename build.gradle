@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+    id 'io.papermc.paperweight.userdev' version '2.0.0-beta.19'
+}
+
+group = 'AspireInc'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+
+    // Lumine Releases — this **actually hosts LibsDisguises 10.0.31**
+    maven { url 'https://mvn.lumine.io/repository/maven-public/' }
+    maven { url 'https://mvn.lib.co.nz/public' }
+
+    // Common Minecraft / Spigot repos
+    maven { url 'https://repo.md-5.net/content/groups/public/' }
+    maven { url 'https://repo.md-5.net/content/repositories/public/' }
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+
+    // Optional extra repos (you can keep these if you need them)
+    maven { url 'https://oss.sonatype.org/content/groups/public/' }
+    maven { url 'https://repo.dmulloy2.net/repository/public/' }
+    maven { url 'https://repo.codemc.org/repository/maven-snapshots/' }
+    maven { url 'https://maven.enginehub.org/repo/' }
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+    maven { url 'https://ci.citizensnpcs.co/plugin/repository/everything/' }
+    maven { url 'https://repo.codemc.io/repository/maven-releases/' }
+    maven { url 'https://repo.codemc.io/repository/maven-snapshots/' }
+}
+
+dependencies {
+    paperweight.paperDevBundle("1.21.7-R0.1-SNAPSHOT")
+
+    implementation 'net.skinsrestorer:skinsrestorer-api:14.2.4-SNAPSHOT'
+
+    compileOnly("me.libraryaddict.disguises:libsdisguises:11.0.13") {
+        exclude group: 'org.spigotmc', module: 'spigot-api'
+        exclude group: 'org.spigotmc', module: 'spigot'
+    }
+    compileOnly 'com.github.retrooper:packetevents-spigot:2.11.2'
+    compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
+
+    implementation 'net.dv8tion:JDA:5.0.0-beta.1'
+    implementation 'com.github.luben:zstd-jni:1.5.7-4'
+    implementation 'org.joml:joml:1.10.5'
+
+}

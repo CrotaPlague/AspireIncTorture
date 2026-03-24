@@ -1,0 +1,10 @@
+,Normal,Water,Fire,Earth,Magic,Undead,Shadow,Metal,Flying
+Normal,1x,1x,0.5x,0.5x,1x,1x,0.5x,1x,1x
+Water,0.5x,0.5x,2x,2x,1x,1x,1x,0.5x,1x
+Fire,2x,0.5x,1x,0.5x,2x,2x,1x,2x,2x
+Earth,1x,0.5x,2x,0.5x,1x,1x,1x,0.5x,0.5x
+Magic,1x,1x,1x,1x,2x,2x,0.5x,1x,1x
+Undead,1x,1x,0.5x,0.5x,0.5x,0.5x,2x,1x,1x
+Shadow,0.5x,1x,1x,1x,2x,1x,1x,0.5x,1x
+Metal,2x,0.5x,0.5x,2x,2x,1x,0.5x,0.5x,2x
+Flying,1x,2x,0.5x,2x,1x,2x,1x,1x,1x

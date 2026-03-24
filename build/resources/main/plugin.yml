@@ -1,0 +1,42 @@
+name: Torture
+version: ${project.version}
+main: com.crotaplague.torture.Torture
+api-version: 1.21.7
+authors: [ CrotaPlague ]
+description: Welcome
+depend: [ProtocolLib, LibsDisguises, ActionBarAPI]
+commands:
+  mobMe:
+    description: summons an entity
+    usage: /<command> <mobNum> <level>
+    aliases: justGiveMeIt
+  openBox:
+    description: Opens pc
+    usage: /<command> <boxNum>
+  save:
+    description: saves player file to files
+    usage: /<command>
+  addNpc:
+    description: makes a new NPC
+    usage: /<command>
+  setNPC:
+    description: sets NPC details
+    usage: /<comand> <args>
+  addItem:
+    description: creates ground items
+    usage: /<command> <args>
+  animation:
+    description: allows editing an animation
+    usage: /<command> <args>
+  stage:
+    description: allows playing scenes
+    usage: /<command> <args>
+  battle:
+    description: Starts a battle
+    usage: /command <args>
+  MRBEAST:
+    description: MRBEAST
+    usage: /command
+  sc:
+    description: runs a command
+    usage: /command <args>
