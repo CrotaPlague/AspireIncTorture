@@ -33,6 +33,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -384,7 +386,7 @@ public class battleEngine {
             creature.getEquipment().setHelmet(new ItemStack(Material.NETHERITE_HELMET));
             creature.setInvulnerable(true);
 
-            walker.getPersistentDataContainer().set(key, PersistentDataType.STRING, "Walking to");
+            //walker.getPersistentDataContainer().set(key, PersistentDataType.STRING, "Walking to");
             creature.setCustomNameVisible(false);
             creature.setAI(true);
             Torture.playerSpecifics.put(player.getUniqueId() + " walkingEntityForPVE", walker);
@@ -403,13 +405,14 @@ public class battleEngine {
             Location playerLoc = player.getLocation();
             Vector dir = playerLoc.toVector().subtract(humanLoc.toVector());
             dir = dir.normalize();
-            double offset = 0.6;
+            double offset = 0.9;
             Vector offsetVec = dir.multiply(offset);
-            Location targetLoc = humanLoc.clone().add(offsetVec);
+            Location targetLoc = playerLoc.clone().subtract(offsetVec);
 
             key = new NamespacedKey(Torture.plugin, "AnimationMob");
-            walker.getPersistentDataContainer().set(key, PersistentDataType.INTEGER_ARRAY, new int[]{targetLoc.blockX(), targetLoc.blockZ()});
-
+            //walker.getPersistentDataContainer().set(key, PersistentDataType.INTEGER_ARRAY, new int[]{targetLoc.blockX(), targetLoc.blockZ()});
+            walker.setAI(true);
+            walker.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1));
             MobHandler.moveTo(walker, targetLoc);
 
         }
