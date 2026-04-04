@@ -14,7 +14,10 @@ public class NextMove implements Comparable<NextMove>{
         this.move = move;
         HoldingItems item = mob.getHeldItem();
         if(item != null){
-            item.
+            double healthPercent = mob.getCurrentHp() / (double) mob.getMaxHp();
+            if(healthPercent < item.getActivatePercent()){
+
+            }
         }
     }
 

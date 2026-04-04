@@ -22,12 +22,12 @@ public class HoldingItems extends Sellable implements Cloneable{
         }
     }
 
-    private void setActivatePercent(double percent){
+    public void setActivatePercent(double percent){
         this.activatePercent = percent;
     }
-    private double getActivatePercent(){return this.activatePercent;}
-    private boolean isOnAttack(){return this.onAttack;}
-    private void setOnAttack(boolean b){this.onAttack = b;}
+    public double getActivatePercent(){return this.activatePercent;}
+    public boolean isOnAttack(){return this.onAttack;}
+    public void setOnAttack(boolean b){this.onAttack = b;}
     @Override
     public HoldingItems clone() {
         return new HoldingItems(this);
