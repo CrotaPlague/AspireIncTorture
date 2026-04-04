@@ -10,6 +10,7 @@ import com.crotaplague.torture.Files.ServerScriptService.battleEngine;
 import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
 import com.crotaplague.torture.Files.ServerStorage.*;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.AnimationData;
+import com.crotaplague.torture.Files.ServerStorage.AnimationParts.SoundInventory;
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.CQueue;
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.ChainTask;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
@@ -30,6 +31,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
@@ -42,6 +44,7 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.crotaplague.torture.Files.ServerScriptService.battleEngine.faceLoc;
@@ -76,10 +79,12 @@ public final class Torture extends JavaPlugin {
     public static boolean closing;
     public static Runnable myRunTur;
     public static Location defaultHealLoc;
+    public static Logger LOGGER;
 
     @Override
     public void onEnable() {
         closing = false;
+        LOGGER = this.getLogger();
         try{
             ServerSocket ss=new ServerSocket(6666);
             Socket s=ss.accept();//establishes connection
@@ -118,6 +123,7 @@ public final class Torture extends JavaPlugin {
         getCommand("stage").setExecutor(new cmds());
         getCommand("stage").setTabCompleter(new cmdTabCompleter());
         getCommand("MRBEAST").setTabCompleter(new cmdTabCompleter());
+        getCommand("openSoundGUI").setExecutor(new SoundInventory(this));
 
         world = Bukkit.createWorld(new WorldCreator("world"));
         Location location = new Location(world, -132, 69, 712);
@@ -134,34 +140,15 @@ public final class Torture extends JavaPlugin {
         raycasting.add(fakeEntity);
         Bukkit.getPluginManager().registerEvents(new events(), this);
 
+        NamespacedKey personalMob = new NamespacedKey(Torture.plugin, "PersonalMob");
+
 
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
             for(Player player : Bukkit.getOnlinePlayers()){
                 SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
                 file.tickWentBy();
-                NamespacedKey key = new NamespacedKey(plugin, "owner");
-                NamespacedKey key1 = new NamespacedKey(plugin, "hiddenName");
                 if(!inBattle(player)){
                     player.setFoodLevel(20);
-                }
-                if(world != null){
-                    List<Entity> ents =  world.getEntities().stream().filter(entity2 -> {
-                        if(!(entity2.getPersistentDataContainer().has(key, PersistentDataType.STRING))) return false;
-                        if(Objects.requireNonNull(entity2.getPersistentDataContainer().get(key, PersistentDataType.STRING).equalsIgnoreCase(player.getUniqueId().toString()))){
-                            if(entity2.getPersistentDataContainer().has(key1, PersistentDataType.STRING)) return false;
-                            if(entity2.getPersistentDataContainer().get(key1, PersistentDataType.STRING).equalsIgnoreCase("Walking to")){
-                                return true;
-                            }
-                        }
-                        return false;
-                    }).collect(Collectors.toList());
-                    if(ents.size() != 0) {
-                        for (Entity entity : ents) {
-                            if (entity.getLocation().distanceSquared(Objects.requireNonNull(Bukkit.getEntity(UUID.fromString(entity.getPersistentDataContainer().get(key, PersistentDataType.STRING)))).getLocation()) < 1.5) {
-                                Player player1 = (Player) Bukkit.getEntity(UUID.fromString(entity.getPersistentDataContainer().get(key, PersistentDataType.STRING)));
-                            }
-                        }
-                    }
                 }
             }
             for (Entity humans : raycasting) {
@@ -226,17 +213,14 @@ public final class Torture extends JavaPlugin {
                 battleEngine.makeEntWalk(human.getMob(), player5, humans);
             }
 
-            for(Map.Entry<String, Object> map : playerSpecifics.entrySet()){
-                if(map.getKey().split(" ").length > 1){
-                    if(map.getKey().split(" ")[1] == "hideForAllElse"){
-                        List<Player> list = Bukkit.getOnlinePlayers().stream().filter(player -> player.getUniqueId() != (UUID.fromString(map.getKey().split(" ")[0]))).collect(Collectors.toList());
-                        for(Player notHave : list){
-                            Entity entity = (Entity) map.getValue();
-                            notHave.hideEntity(Torture.plugin, entity);
-                        }
+            world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(personalMob, PersistentDataType.STRING)).forEach(e -> {
+                UUID id = UUID.fromString(e.getPersistentDataContainer().get(personalMob, PersistentDataType.STRING));
+                for(Player p : Bukkit.getOnlinePlayers()){
+                    if(!p.getUniqueId().toString().equalsIgnoreCase(id.toString())){
+                        p.hideEntity(this, e);
                     }
                 }
-            }
+            });
             for(battleClass forLoopedBattle : battles){
                 Bukkit.getScheduler().runTask(this, () -> {
                     CQueue<mobEnums> deadMobsQueue = forLoopedBattle.deadMobs();

@@ -1,14 +1,14 @@
 package com.crotaplague.torture.Files.ServerStorage.AnimationParts;
 
+import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
 import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Torture;
 import com.destroystokyo.paper.entity.Pathfinder;
 import me.libraryaddict.disguise.DisguiseAPI;
 import me.libraryaddict.disguise.disguisetypes.Disguise;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
+import org.bukkit.*;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.*;
 import org.bukkit.persistence.PersistentDataType;
@@ -46,6 +46,10 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
     private UUID id; // The ID of the animation mob was spawned in
     private UUID tie;
     private boolean cameraTp = false;
+    private String sound = null;
+    private Player viewer = null;
+    private float volume = 1f;
+    private float pitch = 1f;
 
     @Override
     public void run() {
@@ -83,6 +87,29 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
         }
         if(goal != null && subject instanceof Player){
             subject.teleport(goal);
+        }
+        if(sound != null){
+            Location loc = subject.getLocation();
+            Sound s = Sound.sound(Key.key(sound), Sound.Source.MASTER, volume, pitch);
+            if(goal != null){
+                loc = goal;
+            }
+            subject.playSound(s, loc.getX(), loc.getY(), loc.getZ());
+        }
+        if(text != null){
+            if(goal != null){
+                randomScripts.generateMessageBox(viewer, goal, text);
+            }
+            if(subject != null && subject instanceof LivingEntity ent){
+                Location loc = ent.getEyeLocation();
+                loc.add(0, 1.5, 0);
+                double amount = Math.clamp(-1, viewer.getLocation().getX() - viewer.getWorld().getSpawnLocation().getX(), 1);
+                double xShift = 0.5 * amount;
+                amount = Math.clamp(-1, viewer.getLocation().getZ() - viewer.getWorld().getSpawnLocation().getZ(), 1);
+                double zShift = 0.5 * amount;
+                loc.add(xShift, 0, zShift);
+                randomScripts.generateMessageBox(viewer, loc, text);
+            }
         }
     }
 
@@ -128,6 +155,17 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
         this.subject = ent;
         this.id = id;
     }
+
+    /**
+     * Constructs animation given a sound name
+     * @param sound The string key of the sound
+     */
+    public AnimationManager(String sound){
+        this.sound = sound;
+    }
+
+    public void setViewer(Player p){this.viewer = p;}
+    public Player getViewer(){return viewer;}
 
     /**
      *
@@ -242,6 +280,17 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
     public void setActor(Entity ent){this.subject = ent;}
 
     /**
+     * Sets the sound
+     * @param sound the sound key
+     */
+    public void setSound(String sound){this.sound = sound;}
+    public String getSound(){return sound;}
+    public void setVolume(float volume){this.volume = volume;}
+    public void setPitch(float pitch){this.pitch = pitch;}
+    public float getVolume(){return volume;}
+    public float getPitch(){return pitch;}
+
+    /**
      * No-arg constructor for animation manager
      * Avoid over-using
      */
@@ -285,6 +334,9 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
         result.put("id", (id != null ? id.toString() : UUID.randomUUID().toString()));
         if(tie != null){result.put("tie", tie.toString());}
         if (cameraTp) result.put("cameraTp", true);
+        if(sound != null){result.put("sound", sound);}
+        if(pitch != 1f) result.put("pitch", pitch);
+        if(volume != 1f) result.put("volume", volume);
         return result;
     }
     /**
@@ -313,6 +365,15 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
         }
         if(a.goal != null){
             a.goal.setWorld(Torture.world);
+        }
+        if(map.containsKey("sound")){
+            a.setSound((String) map.get("sound"));
+        }
+        if(map.containsKey("volume")){
+            a.setVolume((float) map.get("volume"));
+        }
+        if(map.containsKey("pitch")){
+            a.setPitch((float) map.get("pitch"));
         }
         return a;
     }

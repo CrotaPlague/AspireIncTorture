@@ -1,6 +1,7 @@
 package com.crotaplague.torture.Files;
 
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.ZstdCodec;
+import com.crotaplague.torture.Files.ServerStorage.SaveFile;
 import com.crotaplague.torture.Torture;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -20,24 +21,28 @@ public class DataManager {
     private FileConfiguration dataConfig = null;
     private File configFile = null;
     private String fullPath;
+    private SaveFile saveFile;
 
     public DataManager(Torture plugin) {
         this.plugin = plugin;
         fullPath = Torture.path + "data.yml.zst";
-        saveDefaultConfig();
     }
 
     public DataManager(Player player) {
         this.plugin = Torture.plugin;
         fullPath = Torture.path + "saves/player-" + player.getUniqueId() + ".yml.zst";
-        saveDefaultConfig();
+    }
+
+    public DataManager(Player player, SaveFile file) {
+        this.plugin = Torture.plugin;
+        fullPath = Torture.path + "saves/player-" + player.getUniqueId() + ".yml.zst";
+        this.saveFile = file;
     }
 
     public DataManager(File file) {
         this.plugin = Torture.plugin;
         this.configFile = file;
         this.fullPath = file.getAbsolutePath();
-        saveDefaultConfig();
     }
 
     public void reloadConfig() {
@@ -69,6 +74,11 @@ public class DataManager {
         if (this.dataConfig == null) return;
 
         try {
+            if (!this.configFile.exists()) {
+                this.configFile.getParentFile().mkdirs();
+                this.configFile.createNewFile();
+            }
+
             String yamlText = this.dataConfig.saveToString();
             String base64 = ZstdCodec.compressToBase64(yamlText);
             Files.writeString(Path.of(fullPath), base64, StandardCharsets.UTF_8);

@@ -8,23 +8,22 @@ import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import org.bukkit.craftbukkit.entity.CraftMob;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 public class MobHandler {
-    public static void moveTo(org.bukkit.entity.Mob mob, double x, double y, double z) {
-        moveTo(mob, x, y, z, 0.6, 0.1);
+    public static BukkitTask moveTo(org.bukkit.entity.Mob mob, double x, double y, double z) {
+        return moveTo(mob, x, y, z, 0.6, 0.1);
     }
 
-    public static void moveTo(org.bukkit.entity.Mob mob, double x, double y, double z, double speed) {
-        moveTo(mob, x, y, z, speed, 0.1);
+    public static BukkitTask moveTo(org.bukkit.entity.Mob mob, double x, double y, double z, double speed) {
+        return moveTo(mob, x, y, z, speed, 0.1);
     }
 
-    public static void moveTo(org.bukkit.entity.Mob mob, double x, double y, double z, double speed, double stopDistance) {
+    public static BukkitTask moveTo(org.bukkit.entity.Mob mob, double x, double y, double z, double speed, double stopDistance) {
         Mob m = ((CraftMob) mob).getHandle();
         Location target = new Location(mob.getWorld(), x, y, z);
 
-        Bukkit.getLogger().info("Moving to " + x + ", " + y + ", " + z);
-
-        new BukkitRunnable() {
+        return new BukkitRunnable() {
             @Override
             public void run() {
                 // Keep pushing navigation
@@ -33,6 +32,7 @@ public class MobHandler {
                 // Stop condition
                 if (mob.getLocation().distance(target) <= stopDistance) {
                     m.getNavigation().stop(); // stop pathfinding
+                    m.setNoAi(true);
                     cancel();
                 }
 
@@ -44,7 +44,7 @@ public class MobHandler {
         }.runTaskTimer(Torture.plugin, 1L, 1L);
     }
 
-    public static void moveTo(org.bukkit.entity.Mob mob, org.bukkit.Location loc) {
-        moveTo(mob, loc.getX(), loc.getY(), loc.getZ());
+    public static BukkitTask moveTo(org.bukkit.entity.Mob mob, org.bukkit.Location loc) {
+        return moveTo(mob, loc.getX(), loc.getY(), loc.getZ());
     }
 }

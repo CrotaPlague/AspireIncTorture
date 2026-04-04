@@ -40,3 +40,6 @@ commands:
   sc:
     description: runs a command
     usage: /command <args>
+  openSoundGUI:
+    description: opens the sound GUI
+    usage: /command

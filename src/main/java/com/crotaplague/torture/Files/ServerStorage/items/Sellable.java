@@ -31,6 +31,13 @@ public class Sellable extends ItemClass implements ConfigurationSerializable{
         this.buyPrice = s.buyPrice; this.sellPrice = s.sellPrice;
     }
 
+    public Sellable(ItemClass item){
+        super(item);
+        if(item instanceof Sellable s){
+            this.buyPrice = s.buyPrice; this.sellPrice = s.sellPrice;
+        }
+    }
+
     public void setSellPrice(int sellPrice){this.sellPrice = sellPrice;}
     public void setBuyPrice(int buyPrice){this.buyPrice = buyPrice;}
     public int getBuyPrice(){return this.buyPrice;}
@@ -41,11 +48,7 @@ public class Sellable extends ItemClass implements ConfigurationSerializable{
         ItemClass item = ItemClass.deserialize(map);
         if(item == null) return null;
         ItemClass tItem = TItemDex.getItem(item.itemDexNum);
-        Sellable sell = new Sellable();
-        sell.setDisplayName(tItem.displayName);
-        sell.setDisplayItem(new ItemStack(tItem.displayItem));
-        sell.setSellPrice(((Sellable) tItem).getSellPrice());
-        sell.setBuyPrice(((Sellable) tItem).getBuyPrice());
-        return sell;
+        if(tItem == null) return null;
+        return new Sellable(tItem);
     }
 }

@@ -382,19 +382,16 @@ public class battleEngine {
 
 
             Creature creature = (Creature) walker;
-            LivingEntity liv = creature;
             creature.getEquipment().setHelmet(new ItemStack(Material.NETHERITE_HELMET));
             creature.setInvulnerable(true);
 
-            //walker.getPersistentDataContainer().set(key, PersistentDataType.STRING, "Walking to");
             creature.setCustomNameVisible(false);
             creature.setAI(true);
-            Torture.playerSpecifics.put(player.getUniqueId() + " walkingEntityForPVE", walker);
-            Torture.playerSpecifics.put(player.getUniqueId() + " hideForAllElse", walker);
+            NamespacedKey personalMob = new NamespacedKey(Torture.plugin, "PersonalMob");
             key = new NamespacedKey(Torture.getInstance(), "humanDexNum");
 
             walker.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, attackerEnemy.getPersistentDataContainer().get(key, PersistentDataType.INTEGER));
-
+            walker.getPersistentDataContainer().set(personalMob, PersistentDataType.STRING, player.getUniqueId().toString());
             if(attackerEnemy.getUniqueId().equals(humans.getUniqueId())) {player.sendMessage(Component.text("thought so"));}
             Disguise d = DisguiseAPI.getDisguise(humans);
             FlagWatcher watcher = d.getWatcher();
@@ -409,10 +406,10 @@ public class battleEngine {
             Vector offsetVec = dir.multiply(offset);
             Location targetLoc = playerLoc.clone().subtract(offsetVec);
 
-            key = new NamespacedKey(Torture.plugin, "AnimationMob");
-            //walker.getPersistentDataContainer().set(key, PersistentDataType.INTEGER_ARRAY, new int[]{targetLoc.blockX(), targetLoc.blockZ()});
             walker.setAI(true);
             walker.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1));
+            SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
+            file.setWalkingMob(walker);
             MobHandler.moveTo(walker, targetLoc);
 
         }

@@ -15,6 +15,7 @@ import org.bukkit.Location;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -38,7 +39,7 @@ public class SaveFile implements ConfigurationSerializable {
     private boolean inBattle = false;
     private float timeOnServer = 0;
     private String username;
-    private boolean autoSave = true;
+    private boolean autoSave = false;
     int autoDelay = 60;
     private String message = "";
     private Runnable messageTask;
@@ -47,6 +48,7 @@ public class SaveFile implements ConfigurationSerializable {
     private BitSet collectedItems = new BitSet();
     private DataManager dataFile;
     private Location lastHealLoc;
+    private Mob walkingMob;
 
 
     public SaveFile(){mobBoxes.put(0, new HashMap<Integer, mobEnums>()); playerBag = new BagClass(); cash = 0;}
@@ -108,6 +110,8 @@ public class SaveFile implements ConfigurationSerializable {
     public void setAutoSave(boolean c){this.autoSave = c;}
     public void resetAutoDelay(){this.autoDelay = 60;};
     public int getAutoDelay(){return this.autoDelay;}
+    public void setWalkingMob(Mob mob){this.walkingMob = mob;}
+    public Mob getWalkingMob(){return this.walkingMob;}
     public void claimMobs(){
         for(mobEnums m : PlayerMobs.values()){
             m.setTrainer(this.createTrainer());
@@ -140,6 +144,7 @@ public class SaveFile implements ConfigurationSerializable {
         result.put("routeNum", this.routeNum);
         result.put("timeOnServer", this.timeOnServer);
         result.put("PlayerBag", this.playerBag.serialize());
+        result.put("cash", this.cash);
 
         for (Map.Entry<Integer, Map<Integer, mobEnums>> mapEntry : this.mobBoxes.entrySet()) {
             List<mobEnums> mobs = new ArrayList<>();
@@ -166,6 +171,10 @@ public class SaveFile implements ConfigurationSerializable {
 
         if(lastHealLoc != null){
             result.put("healLoc", lastHealLoc.serialize());
+        }
+
+        if(autoSave){
+            result.put("autoSave", true);
         }
 
         return result;
@@ -267,6 +276,12 @@ public class SaveFile implements ConfigurationSerializable {
                 }
 
             }
+        }
+        if(map.containsKey("autoSave")){
+            playerSaveFile.setAutoSave(true);
+        }
+        if(map.containsKey("cash")){
+            playerSaveFile.setCash((Integer) map.get("cash"));
         }
         playerSaveFile.claimMobs();
 

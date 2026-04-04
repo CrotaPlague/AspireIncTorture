@@ -3,6 +3,7 @@ package com.crotaplague.torture.Files.ServerStorage.mobs;
 import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
 import com.crotaplague.torture.Files.ServerStorage.Pair;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
+import com.crotaplague.torture.Files.ServerStorage.items.HoldingItems;
 import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Files.ServerStorage.items.ShulkerItem;
 import com.crotaplague.torture.Files.ServerStorage.items.TItemManager;
@@ -59,6 +60,7 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     private char gender;
     private String nickname;
     private Nature nature;
+    private HoldingItems heldItem = null;
 
     public enum MHTypes {
         NORMAL, WATER, FIRE, EARTH, MAGIC, UNDEAD, SHADOW, METAL, FLYING, FROST;
@@ -140,6 +142,11 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
         this.iv = Arrays.copyOf(m.iv, m.iv.length);
         this.ev = Arrays.copyOf(m.ev, m.ev.length);
         this.nature = m.nature;
+        if(m.heldItem != null){
+            this.heldItem = m.heldItem.clone();
+        }else{
+            this.heldItem = null;
+        }
     }
 
     /**
@@ -487,6 +494,8 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     public UUID getSelfUUID(){return this.selfUUID;}
     public void setSelfUUID(UUID id){this.selfUUID = id;}
     public Nature getNature(){return this.nature;}
+    public HoldingItems getHeldItem(){return this.heldItem;}
+    public void setHeldItem(HoldingItems item){this.heldItem = item.clone();}
     public specialConditions getCondition(){return this.condition;}
     public void setCondition(specialConditions condition){this.condition = condition;}
     public void setBaseExpDrop(int exp){this.baseExpDrop = exp;}

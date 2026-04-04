@@ -11,11 +11,12 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.logging.Level;
 
-public class moveClass implements ConfigurationSerializable {
+public class moveClass extends NextMove implements ConfigurationSerializable{
 
     private int moveNum;   // move number
     private int damage;    // damage amount

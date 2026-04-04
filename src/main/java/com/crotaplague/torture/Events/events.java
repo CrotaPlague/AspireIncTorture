@@ -543,7 +543,6 @@ public class events implements Listener {
                             DisguiseAPI.disguiseToAll(mob, disguise);
                         } else {
                             if(mob.isValid()) {
-                                Bukkit.getPlayer("CrotaPlague").sendMessage(Component.text("This is when it finishes", NamedTextColor.GREEN));
                                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                                     DisguiseAPI.removeCustomDisguise("tempDis" + finalI);
                                 }, 5L);
@@ -567,7 +566,6 @@ public class events implements Listener {
 
             }
             player.removePotionEffect(PotionEffectType.JUMP_BOOST);
-            player.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.42);
             player.setFoodLevel(20);
             player.removePotionEffect(PotionEffectType.INVISIBILITY);
             //start item generation
@@ -623,6 +621,7 @@ public class events implements Listener {
                 }
             }, 8L);
         }
+        player.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.42);
 
 
 

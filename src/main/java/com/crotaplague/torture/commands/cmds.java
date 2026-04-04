@@ -6,6 +6,7 @@ import com.crotaplague.torture.Files.DataManager;
 import com.crotaplague.torture.Files.ServerScriptService.battleEngine;
 import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.AnimationManager;
+import com.crotaplague.torture.Files.ServerStorage.AnimationParts.CustomSound;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.Stage;
 import com.crotaplague.torture.Files.ServerStorage.SaveFile;
 import com.crotaplague.torture.Files.ServerStorage.battleTypes;
@@ -18,6 +19,7 @@ import me.libraryaddict.disguise.DisguiseAPI;
 import me.libraryaddict.disguise.disguisetypes.Disguise;
 import me.libraryaddict.disguise.disguisetypes.PlayerDisguise;
 
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -411,16 +413,71 @@ public class cmds implements CommandExecutor {
                             return true;
                         }
                         AnimationManager man = (AnimationManager) playerSpecifics.get(player.getUniqueId() + " SelectedAnimation");
-                        String full = "";
-                        if(args.length < 2){
-                            player.sendMessage("Must have at least two arguments!!");
-                            player.playSound(player.getLocation(), Sound.ENTITY_SHULKER_HURT, SoundCategory.MASTER, 1, 1);
+                        StringBuilder full = new StringBuilder();
+                        for(int i = 1; i < args.length; i++){
+                            full.append(args[i]);
+                        }
+                        man.setComments(full.toString());
+                    }
+                    if (args[0].equalsIgnoreCase("setSound")) {
+                        String input = args[1];
+                        String namespaced = input.contains(":")
+                                ? input.toLowerCase()
+                                : "minecraft:" + input.toLowerCase();
+
+                        NamespacedKey bukkitKey = NamespacedKey.fromString(namespaced);
+                        boolean isVanilla = false;
+                        if (bukkitKey != null && Registry.SOUNDS.get(bukkitKey) != null) {
+                            isVanilla = true;
+                        }
+
+                        boolean isCustom = CustomSound.fromString(namespaced) != null;
+
+                        if (!isVanilla && !isCustom) {
+                            sender.sendMessage(Component.text("Invalid sound: " + input, NamedTextColor.RED));
                             return true;
                         }
-                        for(int i = 1; i < args.length; i++){
-                            full += args[i];
+
+                        if(!playerSpecifics.containsKey(player.getUniqueId() + " SelectedAnimation")){
+                            player.sendMessage(Component.text("No animation selected!!", NamedTextColor.RED));
+                            return true;
                         }
-                        man.setComments(full);
+                        AnimationManager man = (AnimationManager) playerSpecifics.get(player.getUniqueId() + " SelectedAnimation");
+                        man.setSound(namespaced);
+
+                        return true;
+                    }
+                    if(args[0].equalsIgnoreCase("setVolume")){
+                        float f;
+                        try{
+                            f = Float.parseFloat(args[1]);
+                        }catch(NumberFormatException e){
+                            player.sendMessage(Component.text("Please enter a number!", NamedTextColor.RED));
+                            player.playSound(player.getLocation(), Sound.ENTITY_SHULKER_HURT, SoundCategory.MASTER, 2f, 1f);
+                            return true;
+                        }
+                        if(!playerSpecifics.containsKey(player.getUniqueId() + " SelectedAnimation")){
+                            player.sendMessage(Component.text("No animation selected!!", NamedTextColor.RED));
+                            return true;
+                        }
+                        AnimationManager man = (AnimationManager) playerSpecifics.get(player.getUniqueId() + "SelectedAnimation");
+                        man.setVolume(f);
+                    }
+                    if(args[0].equalsIgnoreCase("setPitch")){
+                        float f;
+                        try{
+                            f = Float.parseFloat(args[1]);
+                        }catch(NumberFormatException e){
+                            player.sendMessage(Component.text("Please enter a number!", NamedTextColor.RED));
+                            player.playSound(player.getLocation(), Sound.ENTITY_SHULKER_HURT, SoundCategory.MASTER, 2f, 1f);
+                            return true;
+                        }
+                        if(!playerSpecifics.containsKey(player.getUniqueId() + " SelectedAnimation")){
+                            player.sendMessage(Component.text("No animation selected!!", NamedTextColor.RED));
+                            return true;
+                        }
+                        AnimationManager man = (AnimationManager) playerSpecifics.get(player.getUniqueId() + "SelectedAnimation");
+                        man.setPitch(f);
                     }
                     animationData.getConfig().set("stage " + stage.getName(), stage.serialize());
                     animationData.saveConfig();
@@ -438,17 +495,18 @@ public class cmds implements CommandExecutor {
                     if(args[0].equalsIgnoreCase("cameraTeleport")){
                         AnimationManager man = new AnimationManager(player.getLocation());
                         playerSpecifics.put(player.getUniqueId() + " SelectedAnimation", man);
-                        if(stage.getAnimations().size() > 0)
+                        if(!stage.getAnimations().isEmpty())
                             openStageAnimations(stage, player);
                         else stage.getAnimations().add(man);
                     }
                 }
             }
             if(cmd.getName().equals("sc")){
-                if(player.getUniqueId().toString().equals("4d959091-e12c-4269-afc5-e15d8b91bd7e"))
-                if(args.length > 0){
-                    if(args[0].equals("close")){
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop");
+                if(player.getUniqueId().toString().equals("4d959091-e12c-4269-afc5-e15d8b91bd7e")) {
+                    if (args.length > 0) {
+                        if (args[0].equals("close")) {
+                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop");
+                        }
                     }
                 }
             }
