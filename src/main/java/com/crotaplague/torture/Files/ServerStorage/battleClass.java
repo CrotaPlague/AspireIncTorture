@@ -11,19 +11,18 @@ import com.crotaplague.torture.Files.ServerStorage.items.HealItem;
 import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Files.ServerStorage.items.ShulkerItem;
 import com.crotaplague.torture.Files.ServerStorage.mobs.mobEnums;
-import com.crotaplague.torture.Files.ServerStorage.specialConditions.specialConditions;
+import com.crotaplague.torture.Files.ServerStorage.specialConditions.SpecialConditions;
 import com.crotaplague.torture.Torture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.*;
 
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static com.crotaplague.torture.Torture.runSequential;
 import static java.util.List.*;
@@ -185,272 +184,191 @@ public class battleClass {
         return trainer.get();
     }
 
-    public void doRound(){
+    public void doRound() {
+        if (battleOver) return;
         setInRound(true);
-        List<mobEnums> order = this.mobs.values().stream().sorted(battleEngine.valueComparator).collect(Collectors.toList());
-        for(Map.Entry<Integer, mobEnums> entry : mobs.entrySet()){
-            Bukkit.getPlayer("CrotaPlague").sendMessage("yep here ya go: " + entry.getValue() + "and then " + entry.getKey());
-        }
-        if(battleOver) return;
-        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-            try {
-                for (mobEnums mob : order) {
-                    if (mob.getNextMove() instanceof mobEnums) {
-                        humanClass.Trainer trainer = mob.getTrainer();
-                        trainer = this.getTrainer(trainer.getSelf());
-                        trainer.setStupid(mob.getSelf().getUniqueId());
-                        trainer.setAlsoStupid(mob.getOpponentMob().getSelf().getUniqueId());
 
-                        this.setTrainer(trainer);
-                        final humanClass.Trainer finalTrainer = trainer;
-                        this.switchMob.offer(mob);
-                        List<ChainTask> tasks = runTask();
-                        for(ChainTask t : tasks){
-                            runAndWait(t);
-                        }
-
-                        waitCounter = 0;
-                        List<Thread> allOthers = new ArrayList<>();
-
-                        Thread swapInT = new Thread() {
-                            public void run() {
-                                randomScripts.battleMessage((LivingEntity) finalTrainer.getSelf(), "You send in " + ((mobEnums) mob.getNextMove()).getName());
-                            }
-                        };
-                        for (Entity ents : entityList) {
-                            allOthers.add(new Thread() {
-                                public void run() {
-                                    if (ents.getUniqueId() != finalTrainer.getSelf().getUniqueId())
-                                        randomScripts.battleMessage((LivingEntity) ents, finalTrainer.getName() + " sent in " + ((mobEnums) mob.getNextMove()).getName());
-                                }
-                            });
-                        }
-                        swapInT.start();
-                        allOthers.forEach(breh -> {
-                            breh.start();
-                        });
-                        int spot = mob.getBattleSpot();
-                        trainer.setCurrentSelecting(mobs.get(spot));
-                    }
-                    Thread t = new Thread() {
-                        public void run() {
-                            try {
-                                this.wait(2000L);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    if (mob.getCurrentHp() > 0) {
-                        if (mob.getNextMove() instanceof moveClass) {
-                            moveClass move = (moveClass) mob.getNextMove();
-                            randomScripts.genMoveTarget(this, move, mob);
-                            int battleSpot = move.getMobTarget().getBattleSpot();
-                            mobEnums tar = this.mobs.get(battleSpot);
-                            move.setMobTarget(tar);
-
-                            battleEngine.makeMove(move, this, mob);
-                        }
-                        if (mob.getNextMove() instanceof ItemClass) {
-                            ItemClass item = (ItemClass) mob.getNextMove();
-                            if (item instanceof ShulkerItem) {
-                                ShulkerItem shulker = (ShulkerItem) item;
-                                shulker.catchMob(((ShulkerItem) mob.getNextMove()).getPossibleCatch());
-                            }
-                            if (item.getType() == ItemClass.TItemType.HEALING) {
-                                HealItem heal = (HealItem) item;
-                                mobEnums m = heal.getTarget();
-                                int amount = heal.getHealAmount();
-                                List<specialConditions> conditions = heal.getConditions();
-                                if (!conditions.isEmpty()) {
-                                    for (specialConditions e : conditions) {
-                                        if (m.getCondition() == e) {
-                                            m.setCondition(null);
-                                        }
-                                    }
-                                }
-                                int originalHealth = m.getCurrentHp();
-                                if (m.getCurrentHp() + amount > m.getStats()[moveClass.Stat.HIT_POINTS.getValue()]) {
-                                    m.setCurrentHp(m.getStats()[moveClass.Stat.HIT_POINTS.getValue()]);
-                                } else {
-                                    m.setCurrentHp(m.getCurrentHp() + amount);
-                                }
-                                final int finalHealth = m.getCurrentHp();
-                                if (mob.hasTrainer() && mob.getTrainer().isInPlay(m)) {
-                                    Thread healThread = new Thread() {
-                                        public void run() {
-                                            for (int health1 = originalHealth; health1 <= finalHealth; health1++) {
-                                                if (health1 < 0) break;
-                                                try {
-                                                    Thread.sleep(62);
-                                                } catch (InterruptedException e) {
-                                                    e.printStackTrace();
-                                                }
-                                                LivingEntity ent = (LivingEntity) m.getSelf();
-                                                ent.customName(Component.text(health1, NamedTextColor.RED));
-                                            }
-                                        }
-                                    };
-
-                                    synchronized (healThread) {
-                                        healThread.run();
-                                        try {
-                                            healThread.join();
-                                        } catch (InterruptedException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                }
-                                final humanClass.Trainer finalTrainer1 = mob.getTrainer();
-                                Thread swapInT = new Thread() {
-                                    public void run() {
-                                        randomScripts.battleMessage((LivingEntity) finalTrainer1.getSelf(), "You use a " + ((ItemClass) mob.getNextMove()).getDisplayName());
-                                    }
-                                };
-                                List<Thread> allOthers = new ArrayList<>();
-                                for (Entity ents : entityList) {
-                                    allOthers.add(new Thread() {
-                                        public void run() {
-                                            if (ents.getUniqueId() != finalTrainer1.getSelf().getUniqueId())
-                                                randomScripts.battleMessage((LivingEntity) ents, finalTrainer1.getName() + " uses a  " + ((ItemClass) mob.getNextMove()).getDisplayName());
-                                        }
-                                    });
-                                }
-                                swapInT.start();
-                                allOthers.forEach(breh -> {
-                                    breh.start();
-                                });
-                            }
-                        }
-                    }
-                    synchronized (t) {
-                        t.run();
-                        try {
-                            t.join();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                this.resetStatuses();
-                List<humanClass.Trainer> myList = new ArrayList<>();
-                int numDead = 0;
-                for (humanClass.Trainer track : this.getCompetitors()) {
-                    track.clearMobMoves();
-                    if (track.hasDeadActiveMob() && !track.isOutOfMobs()) {
-                        myList.add(track);
-                        numDead += track.numDeadActive();
-                        SaveFile file = Torture.playerSaveFiles.get(track.getSelf().getUniqueId() + "");
-                        for (ArmorStand armorStand : file.getArmorStands()) {
-                            armorStand.setCustomNameVisible(true);
-                        }
-                    }
-                }
-                List<mobEnums> toReplace = new ArrayList<>();
-                int completed = 0;
-                while (completed < numDead) {
-                    Thread newThread = new Thread() {
-                        public void run() {
-                            try {
-                                this.wait(25L);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-
-                    completed = 0;
-                    for (humanClass.Trainer t : myList) {
-                        t = this.getTrainer(t.getSelf());
-                        int swaps = t.nextMoveSwaps();
-                        toReplace.addAll(t.getDeadMobs());
-                        completed += swaps;
-                    }
-
-                    synchronized (newThread) {
-                        newThread.run();
-                        try {
-                            newThread.join();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                for (mobEnums mob : toReplace) {
-                    ChainTask task = (toComplete) -> {
-                        humanClass.Trainer t = mob.getTrainer();
-                        t.setStupid(mob.getSelf().getUniqueId());
-                        t.setAlsoStupid(mob.getOpponentMob().getSelf().getUniqueId());
-
-                        this.setTrainer(t);
-                        final humanClass.Trainer thisT = t;
-                        switchMob.offer(mob);
-                        List<ChainTask> tasks = runTask();
-                        for(ChainTask tasked : tasks){
-                            runAndWait(tasked);
-                        }
-                        mob.getTrainer().setCurrentSelecting(mob);
-                        waitCounter = 0;
-                        List<Thread> allOthers = new ArrayList<>();
-
-                        Thread swapInT = new Thread() {
-                            public void run() {
-                                randomScripts.battleMessage((LivingEntity) thisT.getSelf(), "You send in " + mob.getName());
-                            }
-                        };
-                        for (Entity ents : entityList) {
-                            allOthers.add(new Thread() {
-                                public void run() {
-                                    if (ents.getUniqueId() != thisT.getSelf().getUniqueId())
-                                        randomScripts.battleMessage((LivingEntity) ents, thisT.getName() + " sent in " + mob.getName());
-                                }
-                            });
-                        }
-                        swapInT.start();
-                        allOthers.forEach(breh -> {
-                            breh.start();
-                        });
-
-                        Thread t2 = new Thread() {
-                            public void run() {
-                                try {
-                                    this.wait(1000L);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        };
-
-                        synchronized (t2) {
-                            t2.run();
-                            try {
-                                t2.join();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-
-                }
-                for (humanClass.Trainer track : this.getCompetitors()) {
-                    if (track.isOutOfMobs()) continue;
-                    if (track.getSelf() instanceof Player) {
-                        SaveFile file = Torture.playerSaveFiles.get(track.getSelf().getUniqueId() + "");
-                        for (ArmorStand armorStand : file.getArmorStands()) {
-                            armorStand.setCustomNameVisible(true);
-                        }
-                    } else {
-                        for (mobEnums m : track.getCurrentMobs()) {
-                            m.setNextMove(m.getRandomMove());
-                            setMobStatus(m);
-                        }
-                    }
-                }
-                setInRound(false);
-            }catch(Exception ex){
-                ex.printStackTrace();
-            }
+        PriorityQueue<mobEnums> order = new PriorityQueue<>((a, b) -> {
+            NextMove aMove = a.getNextMove();
+            NextMove bMove = b.getNextMove();
+            if (aMove == null && bMove == null) return 0;
+            if (aMove == null) return 1;
+            if (bMove == null) return -1;
+            return aMove.compareTo(bMove);
         });
+        order.addAll(this.mobs.values());
+
+        List<ChainTask> roundTasks = new ArrayList<>();
+
+        while (!order.isEmpty()) {
+            mobEnums mob = order.poll();
+            NextMove nextMove = mob.getNextMove();
+            if (nextMove == null) continue;
+
+            roundTasks.add((onComplete) -> {
+                if (mob.getCurrentHp() <= 0) {
+                    onComplete.run();
+                    return;
+                }
+
+                if (nextMove.isSwap()) {
+                    handleSwap(mob, nextMove.getSwapTarget(), onComplete);
+                } else if (nextMove.isItem()) {
+                    handleItem(mob, nextMove.getItem(), onComplete);
+                } else if (nextMove.isMove()) {
+                    handleMove(mob, nextMove.getMove(), onComplete);
+                } else {
+                    onComplete.run();
+                }
+            });
+        }
+
+        // Handle fainted mobs at the end of the round
+        roundTasks.add(this::handleFaintedAndReplacements);
+
+        // Finalize round
+        roundTasks.add((onComplete) -> {
+            resetStatuses();
+            setInRound(false);
+            for (humanClass.Trainer t : competitors) {
+                if (t.getSelf() instanceof Player) {
+                    t.displayOptions(this);
+                } else {
+                    for (mobEnums m : t.getCurrentMobs()) {
+                        m.setNextMove(NextMove.fromMove(m.getRandomMove(), m));
+                        setMobStatus(m);
+                    }
+                }
+            }
+            onComplete.run();
+        });
+
+        Torture.runSequential(roundTasks);
+    }
+
+    private void handleSwap(mobEnums mob, mobEnums target, Runnable onComplete) {
+        humanClass.Trainer trainer = mob.getTrainer();
+        randomScripts.battleMessage((LivingEntity) trainer.getSelf(), "You send in " + target.getName());
+        for (Entity ent : entityList) {
+            if (!ent.getUniqueId().equals(trainer.getSelf().getUniqueId())) {
+                randomScripts.battleMessage((LivingEntity) ent, trainer.getName() + " sent in " + target.getName());
+            }
+        }
+
+        events.swapMob(target, trainer, this, () -> {
+            subOutMob(mob, target);
+            trainer.setCurrentSelecting(target);
+            Bukkit.getScheduler().runTaskLater(Torture.plugin, onComplete, 20L);
+        });
+    }
+
+    private void handleItem(mobEnums mob, ItemClass item, Runnable onComplete) {
+        humanClass.Trainer trainer = mob.getTrainer();
+        randomScripts.battleMessage((LivingEntity) trainer.getSelf(), "You use a " + item.getDisplayName());
+        for (Entity ent : entityList) {
+            if (!ent.getUniqueId().equals(trainer.getSelf().getUniqueId())) {
+                randomScripts.battleMessage((LivingEntity) ent, trainer.getName() + " uses a " + item.getDisplayName());
+            }
+        }
+
+        if (item.getType() == ItemClass.TItemType.HEALING && item instanceof HealItem heal) {
+            mobEnums target = heal.getTarget();
+            int originalHealth = target.getCurrentHp();
+            int maxHp = target.getStats()[moveClass.Stat.HIT_POINTS.getValue()];
+            target.setCurrentHp(Math.min(maxHp, target.getCurrentHp() + heal.getHealAmount()));
+
+            if (target.getCondition() != null && heal.getConditions().contains(target.getCondition())) {
+                target.setCondition(null);
+            }
+
+            // Animation for healing (re-using logic from entMove but for healing)
+            int finalHealth = target.getCurrentHp();
+            AtomicInteger current = new AtomicInteger(originalHealth);
+            AtomicInteger taskId = new AtomicInteger();
+            taskId.set(Bukkit.getScheduler().scheduleSyncRepeatingTask(Torture.plugin, () -> {
+                int val = current.incrementAndGet();
+                if (target.getSelf() != null) {
+                    ((LivingEntity) target.getSelf()).customName(Component.text(val, NamedTextColor.GREEN));
+                }
+                if (val >= finalHealth) {
+                    Bukkit.getScheduler().cancelTask(taskId.get());
+                    onComplete.run();
+                }
+            }, 0L, 2L));
+        } else if (item instanceof ShulkerItem shulker) {
+            shulker.catchMob(shulker.getPossibleCatch());
+            onComplete.run();
+        } else {
+            onComplete.run();
+        }
+    }
+
+    private void handleMove(mobEnums mob, moveClass move, Runnable onComplete) {
+        randomScripts.genMoveTarget(this, move, mob);
+        int battleSpot = move.getMobTarget().getBattleSpot();
+        mobEnums actualTarget = this.mobs.get(battleSpot);
+        move.setMobTarget(actualTarget);
+
+        battleEngine.makeMove(move, this, mob, () -> {
+            Bukkit.getScheduler().runTaskLater(Torture.plugin, onComplete, 10L);
+        });
+    }
+
+    private void handleFaintedAndReplacements(Runnable onComplete) {
+        List<humanClass.Trainer> trainersWithDeadMobs = new ArrayList<>();
+        for (humanClass.Trainer t : competitors) {
+            if (t.hasDeadActiveMob() && !t.isOutOfMobs()) {
+                trainersWithDeadMobs.add(t);
+            }
+        }
+
+        if (trainersWithDeadMobs.isEmpty()) {
+            onComplete.run();
+            return;
+        }
+
+        // This is tricky because we need to wait for multiple players.
+        // For simplicity in this refactor, let's process them one by one or wait for all.
+        AtomicInteger pendingReplacements = new AtomicInteger(trainersWithDeadMobs.size());
+
+        for (humanClass.Trainer t : trainersWithDeadMobs) {
+            if (t.getSelf() instanceof Player player) {
+                // Open replacement GUI. 
+                player.sendMessage(ChatColor.YELLOW + "One of your mobs fainted! Pick a replacement.");
+                
+                checkReplacement(t, () -> {
+                    if (pendingReplacements.decrementAndGet() == 0) {
+                        onComplete.run();
+                    }
+                });
+            } else {
+                // AI picks automatically
+                Set<mobEnums> deadActiveMobs = t.getDeadMobs();
+                mobEnums deadMob = deadActiveMobs.isEmpty() ? null : deadActiveMobs.iterator().next();
+                mobEnums replacement = t.getFirstMobAlive();
+                if (deadMob != null && replacement != null) {
+                    handleSwap(deadMob, replacement, () -> {
+                        if (pendingReplacements.decrementAndGet() == 0) {
+                            onComplete.run();
+                        }
+                    });
+                } else {
+                    if (pendingReplacements.decrementAndGet() == 0) {
+                        onComplete.run();
+                    }
+                }
+            }
+        }
+    }
+
+    private void checkReplacement(humanClass.Trainer trainer, Runnable onComplete) {
+        Bukkit.getScheduler().runTaskLater(Torture.plugin, () -> {
+            if (!trainer.hasDeadActiveMob() || trainer.isOutOfMobs()) {
+                onComplete.run();
+            } else {
+                checkReplacement(trainer, onComplete);
+            }
+        }, 10L);
     }
     public void entDead(mobEnums mob){
         this.dead.offer(mob);
@@ -466,22 +384,6 @@ public class battleClass {
         return false;
     }
 
-    public List<ChainTask> runTask(){
-        List<ChainTask> tasks = new ArrayList<>();
-        if(!switchMob.isEmpty()){
-            while(!switchMob.isEmpty()){
-                mobEnums mob = switchMob.poll();
-                ChainTask task = (onComplete) -> {
-                    events.swapMob((mobEnums) mob.getNextMove(), mob.getTrainer(), this, onComplete);
-                    subOutMob(mob, (mobEnums) mob.getNextMove());
-                    this.incCounter();
-                };
-
-                tasks.add(task);
-            }
-        }
-        return tasks;
-    }
 
     @Override
     public boolean equals(Object o){
@@ -499,15 +401,6 @@ public class battleClass {
         return other.boxNum == boxNum && playerCount == other.playerCount;
     }
 
-    public static void runAndWait(ChainTask task) {
-        CountDownLatch latch = new CountDownLatch(1);
-        task.run(latch::countDown);
-        try {
-            latch.await(); // Blocks until onComplete is called
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
 
 
 }

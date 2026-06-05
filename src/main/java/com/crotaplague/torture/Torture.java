@@ -13,6 +13,7 @@ import com.crotaplague.torture.Files.ServerStorage.AnimationParts.AnimationData;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.SoundInventory;
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.CQueue;
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.ChainTask;
+import com.crotaplague.torture.Files.ServerStorage.disguises.*;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanDex;
 import com.crotaplague.torture.Files.ServerStorage.items.TItemManager;
@@ -80,6 +81,7 @@ public final class Torture extends JavaPlugin {
     public static Runnable myRunTur;
     public static Location defaultHealLoc;
     public static Logger LOGGER;
+    public static SimpleDisguiseManager disguiseManager;
 
     @Override
     public void onEnable() {
@@ -100,6 +102,12 @@ public final class Torture extends JavaPlugin {
 
         this.worldData = new RealData(this);
         this.animationData = new AnimationData(this);
+        ConfigurationSerialization.registerClass(PlayerDisguise.class, "TorturePlayerDisguise");
+        ConfigurationSerialization.registerClass(BlockDisguise.class, "TortureBlockDisguise");
+        ConfigurationSerialization.registerClass(ItemDisguise.class, "TortureItemDisguise");
+        disguiseManager = new SimpleDisguiseManager(this, new SimpleDisguiseRenderer(this), new OnlyDisguisePolicy());
+        DisguiseApi api = new SimpleDisguiseApi(this, disguiseManager);
+        DisguiseApiHolder.set(api);
 
         ItemManager.init();
 
@@ -143,115 +151,7 @@ public final class Torture extends JavaPlugin {
         NamespacedKey personalMob = new NamespacedKey(Torture.plugin, "PersonalMob");
 
 
-        Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
-            for(Player player : Bukkit.getOnlinePlayers()){
-                SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
-                file.tickWentBy();
-                if(!inBattle(player)){
-                    player.setFoodLevel(20);
-                }
-            }
-            for (Entity humans : raycasting) {
-                // Only proceed for living entities
-                if (!(humans instanceof LivingEntity)) continue;
-                LivingEntity livingEntity = (LivingEntity) humans;
-
-                // Raytrace players up to 35 blocks ahead
-                Location eyeLoc = livingEntity.getEyeLocation();
-                Vector dir = eyeLoc.getDirection();
-                World world = livingEntity.getWorld();
-
-                RayTraceResult trace = world.rayTraceEntities(
-                        eyeLoc,
-                        dir,
-                        35,
-                        // only consider players
-                        entity -> entity instanceof Player
-                );
-
-                if (trace == null) continue;
-                Entity hit = trace.getHitEntity();
-                if (!(hit instanceof Player)) continue;
-                Player player5 = (Player) hit;
-
-                // Skip if player is already in a battle
-                boolean inBattle = Torture.battles.stream()
-                        .anyMatch(mover -> mover.getEntityCompetitors().contains(player5));
-                if (inBattle) continue;
-
-                String fullMsgKey = player5.getUniqueId() + " fullMessage";
-                // If they've already got a full message queued, skip initial encounter
-                if (Torture.playerSpecifics.get(fullMsgKey) != null) continue;
-
-                // Trainer detection
-                NamespacedKey key = new NamespacedKey(Torture.getInstance(), "humanDexNum");
-                Integer dexNum = livingEntity.getPersistentDataContainer()
-                        .get(key, PersistentDataType.INTEGER);
-                SaveFile playerSave = playerSaveFiles.get(player5.getUniqueId().toString());
-                humanClass human = humanDex.getHuman(dexNum, livingEntity);
-                // Skip if they've already defeated this trainer
-                player5.sendMessage("This is a thingy? " + dexNum + " " + playerSave.getDefeatedTrainers().toString());
-                if (playerSave.hasDefeatedTrainer(human.getDexNum())) continue;
-
-                // Hide the trainer and start battle
-                player5.hideEntity(Torture.plugin, humans);
-
-                playerSave.setOpponent(human.toAi());
-
-                // Send action bar message or queue it
-                if (Torture.playerSpecifics.get(fullMsgKey) == null) {
-                    randomScripts.actionBarMessage(
-                            player5,
-                            human.getPhrase(),
-                            SaveFile.MessagePurpose.TRAINER
-                    );
-                } else {
-                    playerSave.addToQueue(human.getPhrase());
-                }
-
-                // Use your custom movement logic
-                battleEngine.makeEntWalk(human.getMob(), player5, humans);
-            }
-
-            world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(personalMob, PersistentDataType.STRING)).forEach(e -> {
-                UUID id = UUID.fromString(e.getPersistentDataContainer().get(personalMob, PersistentDataType.STRING));
-                for(Player p : Bukkit.getOnlinePlayers()){
-                    if(!p.getUniqueId().toString().equalsIgnoreCase(id.toString())){
-                        p.hideEntity(this, e);
-                    }
-                }
-            });
-            for(battleClass forLoopedBattle : battles){
-                Bukkit.getScheduler().runTask(this, () -> {
-                    CQueue<mobEnums> deadMobsQueue = forLoopedBattle.deadMobs();
-                    processNext(deadMobsQueue);
-                });
-                Bukkit.getOnlinePlayers().forEach(player -> {
-                    for (Entity entity : forLoopedBattle.getEntityCompetitors()){
-                        if(entity instanceof Player){
-                            SaveFile file = playerSaveFiles.get(entity.getUniqueId() + "");
-                            file.getArmorStands().forEach(stand -> {Bukkit.getOnlinePlayers().forEach(playerfive ->  {if(playerfive.getUniqueId() != entity.getUniqueId()){ playerfive.hideEntity(this, stand);};});});
-                        }
-                        if(!forLoopedBattle.getEntityCompetitors().contains(player)){
-                            player.hideEntity(this, entity);
-                        }
-                    }
-                })
-
-            ;}
-            for(Map.Entry<Player, Integer> iner : timeTracker.entrySet()){
-                int iVar = iner.getValue();
-                iVar++;
-                timeTracker.put(iner.getKey(), iVar);
-            }
-            for(Map.Entry<ScheduledFuture, Mob> entry : new HashMap<>(toCancel).entrySet()){
-                if(!entry.getValue().hasAI()){ entry.getKey().cancel(true); toCancel.remove(entry.getKey()); Bukkit.getPlayer("CrotaPlague").sendMessage("done! :8yolsb:");}
-            }
-            for(Map.Entry<ScheduledFuture, boolean[]> entry : cancelPair.entrySet()){
-                if(entry.getValue()[0]){ entry.getKey().cancel(true); Bukkit.getPlayer("CrotaPlague").sendMessage("terminated");}
-            }
-
-        }, 0L, 1L);
+        Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, this::mainTick, 0L, 1L);
 
         myRunTur = ()->{
             while(true) {
@@ -423,87 +323,119 @@ public final class Torture extends JavaPlugin {
         return id;
     }
 
-    public static double lerp(double start, double end, double step){
-        return start + (end - start) * step;
+    private void mainTick() {
+        tickPlayers();
+        tickTrainers();
+        tickSync();
+        tickBattles();
+        tickTime();
+        tickLegacyTasks();
     }
 
-    private void processNext(CQueue<mobEnums> queue) {
-        if (queue.isEmpty()) {
-            return; // done processing all dead mobs
+    private void tickSync(){
+        for(Player player : Bukkit.getOnlinePlayers()){
+            disguiseManager.sync(player);
         }
-
-        mobEnums mob = queue.poll();
-        removeMob(mob, () -> processNext(queue));
     }
 
-    public static void removeMob(mobEnums mob){
-        removeMob(mob, null);
+    private void tickPlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
+            if (file != null) {
+                file.tickWentBy();
+            }
+            if (!inBattle(player)) {
+                player.setFoodLevel(20);
+            }
+        }
     }
 
+    private void tickTrainers() {
+        NamespacedKey humanDexKey = new NamespacedKey(this, "humanDexNum");
+        for (Entity humanEnt : raycasting) {
+            if (!(humanEnt instanceof LivingEntity living)) continue;
 
-    public static void removeMob(mobEnums mob, Runnable onComplete) {
-        Creature creature = (Creature) mob.getSelf();
-        World world = creature.getWorld();
-        double endX = creature.getLocation().getX();
-        Vector vec = creature.getEyeLocation().getDirection().normalize().multiply(-2.9);
-        Location loc = creature.getEyeLocation().add(vec);
-        loc.setY(loc.getY());
-        loc.setZ(creature.getZ());
+            Location eyeLoc = living.getEyeLocation();
+            RayTraceResult trace = living.getWorld().rayTraceEntities(
+                    eyeLoc, eyeLoc.getDirection(), 35,
+                    entity -> entity instanceof Player
+            );
 
-        ArmorStand stand = (ArmorStand) world.spawnEntity(loc, EntityType.ARMOR_STAND);
-        stand.setGravity(false);
-        stand.getEquipment().setHelmet(mob.getMobBall().getDisplayItem());
-        stand.setInvisible(true);
+            if (trace == null || !(trace.getHitEntity() instanceof Player player)) continue;
 
-        faceLoc(stand, creature);
+            if (Torture.battles.stream().anyMatch(b -> b.getEntityCompetitors().contains(player))) continue;
 
-        Location og = stand.getLocation();
-        double[] x = {0};
-        Location[] armorHead = {null};
+            String fullMsgKey = player.getUniqueId() + " fullMessage";
+            if (playerSpecifics.get(fullMsgKey) != null) continue;
 
-        // Runnable to execute when stand reaches the mob
-        Runnable finalizeRemoval = () -> {
-            Location headLoc = armorHead[0];
-            world.getBlockAt(headLoc).setType(mob.getMobBall().getDisplayItem().getType());
-            ShulkerBox box = (ShulkerBox) world.getBlockAt(headLoc).getState();
-            box.open();
-            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, box::close, 12L);
-            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
-                world.getBlockAt(headLoc).setType(Material.AIR);
-                creature.remove();
-                if(onComplete != null){
-                    onComplete.run();
-                }
-            }, 24L);
-        };
+            Integer dexNum = living.getPersistentDataContainer().get(humanDexKey, PersistentDataType.INTEGER);
+            if (dexNum == null) continue;
 
-        // Animate the armor stand towards the creature
-        AtomicInteger taskId = new AtomicInteger();
-        int id = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, new Runnable() {
-            @Override
-            public void run() {
-                double y = -(0.6 * x[0] * x[0]) + (1.6 * x[0]) + og.getY();
-                Location current = stand.getLocation();
+            SaveFile playerSave = playerSaveFiles.get(player.getUniqueId().toString());
+            humanClass human = humanDex.getHuman(dexNum, living);
+            
+            if (playerSave.hasDefeatedTrainer(human.getDexNum())) continue;
 
-                if (current.getX() < creature.getLocation().getX()) {
-                    current.add(0.1, 0, 0);
-                } else {
-                    current.add(-0.1, 0, 0);
-                }
+            player.hideEntity(this, humanEnt);
+            playerSave.setOpponent(human.toAi());
 
-                current.setY(y);
-                stand.teleport(current);
-                x[0] += 0.12;
+            if (playerSpecifics.get(fullMsgKey) == null) {
+                randomScripts.actionBarMessage(player, human.getPhrase(), SaveFile.MessagePurpose.TRAINER);
+            } else {
+                playerSave.addToQueue(human.getPhrase());
+            }
 
-                if (Math.abs(current.getX() - endX) < 0.4) {
-                    armorHead[0] = stand.getEyeLocation();
-                    stand.remove();
-                    Bukkit.getScheduler().runTask(plugin, finalizeRemoval);
-                    Bukkit.getScheduler().cancelTask(taskId.get());
+            battleEngine.makeEntWalk(human.getMob(), player, humanEnt);
+        }
+    }
+
+    private void tickBattles() {
+        for (battleClass battle : battles) {
+            CQueue<mobEnums> deadMobsQueue = battle.deadMobs();
+            battleEngine.processNext(deadMobsQueue);
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                for (Entity entity : battle.getEntityCompetitors()) {
+                    if (entity instanceof Player pComp) {
+                        SaveFile file = playerSaveFiles.get(pComp.getUniqueId() + "");
+                        if (file != null) {
+                            file.getArmorStands().forEach(stand -> {
+                                if (!player.getUniqueId().equals(pComp.getUniqueId())) {
+                                    player.hideEntity(this, stand);
+                                }
+                            });
+                        }
+                    }
+                    if (!battle.getEntityCompetitors().contains(player)) {
+                        player.hideEntity(this, entity);
+                    }
                 }
             }
-        }, 0L, 1L);
-        taskId.set(id);
+        }
+    }
+
+    private void tickTime() {
+        for (Player player : timeTracker.keySet()) {
+            timeTracker.computeIfPresent(player, (p, time) -> time + 1);
+        }
+    }
+
+    private void tickLegacyTasks() {
+        toCancel.entrySet().removeIf(entry -> {
+            if (!entry.getValue().hasAI()) {
+                entry.getKey().cancel(true);
+                return true;
+            }
+            return false;
+        });
+
+        cancelPair.entrySet().removeIf(entry -> {
+            if (entry.getValue()[0]) {
+                entry.getKey().cancel(true);
+                return true;
+            }
+            return false;
+        });
     }
 
     public static void runSequential(ChainTask... tasks) {

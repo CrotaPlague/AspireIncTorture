@@ -1,6 +1,6 @@
 package com.crotaplague.torture.Files.ServerStorage.items;
 
-import com.crotaplague.torture.Files.ServerStorage.specialConditions.specialConditions;
+import com.crotaplague.torture.Files.ServerStorage.specialConditions.SpecialConditions;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -15,7 +15,7 @@ import java.util.Map;
 public class HealItem extends Sellable implements ConfigurationSerializable, Cloneable {
 
     private int healAmount = 0;
-    private List<specialConditions> healConditions = new ArrayList<>();
+    private List<SpecialConditions> healConditions = new ArrayList<>();
     private boolean reviveItem;
 
     public HealItem(){
@@ -27,7 +27,7 @@ public class HealItem extends Sellable implements ConfigurationSerializable, Clo
         this.healAmount = healAmount;
         this.reviveItem = false;
     }
-    public HealItem(int amount, int healAmount, int itemDexNum, List<specialConditions> conditions, boolean reviveItem) {
+    public HealItem(int amount, int healAmount, int itemDexNum, List<SpecialConditions> conditions, boolean reviveItem) {
         super(TItemType.HEALING, amount, itemDexNum);
         this.healAmount = healAmount;
         this.reviveItem = reviveItem;
@@ -45,8 +45,8 @@ public class HealItem extends Sellable implements ConfigurationSerializable, Clo
             HealItem aHealItem = (HealItem) i;
             this.reviveItem = aHealItem.reviveItem;
             this.healConditions = new ArrayList<>();
-            for(specialConditions cond : aHealItem.healConditions){
-                healConditions.add(new specialConditions(cond.getTurn(), cond.getCondition()));
+            for(SpecialConditions cond : aHealItem.healConditions){
+                healConditions.add(new SpecialConditions(cond.getTurn(), cond.getCondition()));
             }
             this.healAmount = aHealItem.healAmount;
         }
@@ -56,18 +56,18 @@ public class HealItem extends Sellable implements ConfigurationSerializable, Clo
         super(TItemType.HEALING, item.getAmount(), item.getItemDexNum());
     }
 
-    public void addCondition(specialConditions con){healConditions.add(con);}
-    public List<specialConditions> getConditions(){return this.healConditions;}
+    public void addCondition(SpecialConditions con){healConditions.add(con);}
+    public List<SpecialConditions> getConditions(){return this.healConditions;}
     public int getHealAmount() {
         return this.healAmount;
     }
     public boolean isReviveItem(){return this.reviveItem;}
     public void setReviveItem(boolean a){this.reviveItem = a;}
     public void setHealAmount(int amount){this.healAmount = amount;}
-    public void setHealConditions(List<specialConditions> cond){
+    public void setHealConditions(List<SpecialConditions> cond){
         this.healConditions = new ArrayList<>();
-        for(specialConditions co : cond){
-            healConditions.add(new specialConditions(co));
+        for(SpecialConditions co : cond){
+            healConditions.add(new SpecialConditions(co));
         }
     }
 

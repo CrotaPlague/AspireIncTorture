@@ -3,7 +3,7 @@ package com.crotaplague.torture.Files.ServerStorage;
 
 
 import com.crotaplague.torture.Files.ServerStorage.mobs.mobEnums;
-import com.crotaplague.torture.Files.ServerStorage.specialConditions.specialConditions;
+import com.crotaplague.torture.Files.ServerStorage.specialConditions.SpecialConditions;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
@@ -33,7 +33,7 @@ public class moveClass extends NextMove implements ConfigurationSerializable{
     private int totalAllowedUses;   //  the beginning usages
     private boolean goesFirst = false;   // if it is going to go first
     private UUID targetID;
-    private List<specialConditions> posConditions = new ArrayList<specialConditions>();
+    private List<SpecialConditions> posConditions = new ArrayList<SpecialConditions>();
     private moveEffectTarget effectTarget;    //  who's stat gets changed by the effect?
 
     public enum moveEffectTarget{
@@ -95,90 +95,19 @@ public class moveClass extends NextMove implements ConfigurationSerializable{
     }
 
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType) {
-        this.damage = damage;
-        this.name = name;
-        this.moveNum = moveNum;
-        this.icon = icon;
-        ItemMeta itemMeta = icon.getItemMeta();
-        if(itemMeta!= null){
-            itemMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            this.icon.setItemMeta(itemMeta);
-        }
-        this.accuracy = accuracy;
-        this.allowedUses = allowedUses;
-        this.moveType = moveType;
-        this.target = null;
-        this.effectChance = 0;
-        this.mobTarget = null;
-        this.effectAmount = 0;
-        this.effectStat = null;
-        this.totalAllowedUses = allowedUses;
-        this.goesFirst = false;
+        this(moveNum, name, icon, damage, accuracy, allowedUses, moveType, moveEffectTarget.ENEMY);
     }
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType, moveEffectTarget target) {
-        this.damage = damage;
-        this.name = name;
-        this.moveNum = moveNum;
-        this.icon = icon;
-        ItemMeta itemMeta = icon.getItemMeta();
-        if(itemMeta!= null){
-            itemMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            this.icon.setItemMeta(itemMeta);
-        }
-        this.accuracy = accuracy;
-        this.allowedUses = allowedUses;
-        this.moveType = moveType;
-        this.target = null;
-        this.effectChance = 0;
-        this.mobTarget = null;
-        this.effectAmount = 0;
-        this.effectStat = null;
-        this.totalAllowedUses = allowedUses;
-        this.goesFirst = false;
-        this.target = target;
+        this(moveNum, name, icon, damage, accuracy, allowedUses, moveType, target, 0, 0, null, (mobEnums) null);
     }
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType, Stat effectStat) {
-        this.damage = damage;
-        this.name = name;
-        this.moveNum = moveNum;
-        this.icon = icon;
-        ItemMeta itemMeta = icon.getItemMeta();
-        if(itemMeta!= null){
-            itemMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            this.icon.setItemMeta(itemMeta);
-        }
-        this.accuracy = accuracy;
-        this.allowedUses = allowedUses;
-        this.target = null;
-        this.effectChance = 0;
-        this.mobTarget = null;
-        this.effectAmount = 0;
-        this.moveType = moveType;
-        this.totalAllowedUses = allowedUses;
-        this.goesFirst = false;
-        this.effectStat = effectStat;
+        this(moveNum, name, icon, damage, accuracy, allowedUses, moveType, moveEffectTarget.ENEMY, 0, 0, effectStat);
     }
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType, moveEffectTarget target, int effectChance, int effectAmount, Stat effectStat) {
-        this.damage = damage;
-        this.name = name;
-        this.moveNum = moveNum;
-        this.icon = icon;
-        ItemMeta itemMeta = icon.getItemMeta();
-        if(itemMeta!= null){
-            itemMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            this.icon.setItemMeta(itemMeta);
-        }
-        this.accuracy = accuracy;
-        this.allowedUses = allowedUses;
-        this.moveType = moveType;
-        this.target = target;
-        this.effectChance = effectChance;
-        this.mobTarget = null;
-        this.effectAmount = effectAmount;
-        this.effectStat = effectStat;
-        this.goesFirst = false;
+        this(moveNum, name, icon, damage, accuracy, allowedUses, moveType, target, effectChance, effectAmount, effectStat, (mobEnums) null);
     }
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType, moveEffectTarget target, int effectChance, int effectAmount, Stat effectStat, moveEffectTarget effectTarget) {
+        super.setMove(this);
         this.damage = damage;
         this.name = name;
         this.moveNum = moveNum;
@@ -200,6 +129,7 @@ public class moveClass extends NextMove implements ConfigurationSerializable{
         this.effectTarget = effectTarget;
     }
     public moveClass(int moveNum, String name, ItemStack icon, int damage, int accuracy, int allowedUses, String moveType, moveEffectTarget target, int effectChance, int effectAmount, Stat effectStat, final mobEnums mobTarget) {
+        super.setMove(this);
         this.damage = damage;
         this.name = name;
         this.moveNum = moveNum;
@@ -249,8 +179,8 @@ public class moveClass extends NextMove implements ConfigurationSerializable{
      * @param condition sets the new condition for the move.
      * @param character literally, what are you here for, kys rn fr fr ong.
      */
-    public void setCondition(specialConditions condition, char character){this.posConditions.add(condition);}
-    public List<specialConditions> getConditions(){return this.posConditions;}
+    public void setCondition(SpecialConditions condition, char character){this.posConditions.add(condition);}
+    public List<SpecialConditions> getConditions(){return this.posConditions;}
 
     @Override
     public Map<String, Object> serialize() {

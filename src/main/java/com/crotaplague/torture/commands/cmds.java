@@ -10,14 +10,14 @@ import com.crotaplague.torture.Files.ServerStorage.AnimationParts.CustomSound;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.Stage;
 import com.crotaplague.torture.Files.ServerStorage.SaveFile;
 import com.crotaplague.torture.Files.ServerStorage.battleTypes;
+import com.crotaplague.torture.Files.ServerStorage.disguises.DisguiseSession;
+import com.crotaplague.torture.Files.ServerStorage.disguises.Disguises;
+import com.crotaplague.torture.Files.ServerStorage.disguises.PlayerDisguise;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
 import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Files.ServerStorage.items.TItemDex;
 import com.crotaplague.torture.Files.ServerStorage.mobs.mobEnums;
 import com.crotaplague.torture.Torture;
-import me.libraryaddict.disguise.DisguiseAPI;
-import me.libraryaddict.disguise.disguisetypes.Disguise;
-import me.libraryaddict.disguise.disguisetypes.PlayerDisguise;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -29,6 +29,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.entity.*;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.EulerAngle;
@@ -56,23 +57,6 @@ public class cmds implements CommandExecutor {
                 ex.printStackTrace();
             }
 
-        }
-        if(cmd.getName().equals("MRBEAST")){
-            Location loc = player.getLocation();
-            List<Location> locs = randomScripts.generateSphere(loc, 3, true);
-            List<String> names = new ArrayList<>();
-            names.add("Technoblade"); names.add("Dream"); names.add("BadBoyHalo"); names.add("GeorgeNotFound"); names.add("Sapnap"); names.add("Chandler_Hallow");
-            names.add("mrbeastgaming1"); names.add("Chris_MemeGod"); names.add("KarlJacobs");
-            for(Location loc2 : locs){
-                if(randomScripts.getRandomNumber(0, 2) == 1 && Math.abs(loc2.getY()-player.getLocation().getY()) < 1.5){
-                    String youtuber =names.get(randomScripts.getRandomNumber(0, 8));
-                    Disguise disguise = new PlayerDisguise(youtuber);
-                    Entity en = world.spawnEntity(loc2, EntityType.VILLAGER);
-                    DisguiseAPI.disguiseEntity(en, disguise);
-                    NamespacedKey key = new NamespacedKey(plugin, "BESAT");
-                    en.getPersistentDataContainer().set(key, PersistentDataType.STRING, youtuber);
-                }
-            }
         }
         if(cmd.getName().equals("save")){
             Location loc = player.getLocation();
@@ -135,36 +119,42 @@ public class cmds implements CommandExecutor {
 
         }
 
-        if(cmd.getName().equalsIgnoreCase("addNPC")){
+        if (cmd.getName().equalsIgnoreCase("addNPC")) {
             NamespacedKey key = new NamespacedKey(Torture.plugin, "humanDexNum");
-            if(args.length < 1){
-                player.sendMessage(Color.RED + "Wrong argument count, correct format is /addNPC <username>!");
+            if (args.length < 1) {
+                player.sendMessage(Component.text("Wrong argument count, correct format is /addNPC <username>!", NamedTextColor.RED));
                 return true;
             }
+
             Location playerLoc = player.getLocation();
-            PlayerDisguise disguise = new PlayerDisguise("", args[0]);
-            Villager villager = (Villager) player.getWorld().spawnEntity(player.getLocation(), EntityType.VILLAGER);
-            villager.setSilent(true);
-            villager.setAI(false);
-            DisguiseAPI.disguiseEntity(villager, disguise);
-            int count = 0;
-            if(worldData.getConfig().contains("Entity count")){
-                count = worldData.getConfig().getInt("Entity count");
-                count = count + 1;
-            }else{
-                count = 1;
-            }
 
-            Map<String, Location> map = new HashMap<>();
-            map.put(DisguiseAPI.parseToString(disguise), playerLoc);
+            Disguises.playerAsync(args[0]).thenAccept(resolved ->
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        Villager villager = (Villager) player.getWorld().spawnEntity(
+                                playerLoc, EntityType.VILLAGER,
+                                CreatureSpawnEvent.SpawnReason.CUSTOM, vil -> {
+                                    ((Villager) vil).setAI(false);
+                                    ((Villager) vil).setSilent(true);
+                                });
 
-            worldData.getConfig().set("spawnNPC " + count, map);
-            worldData.getConfig().set("Entity count", count);
-            villager.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, count);
-            worldData.getConfig().set("humanDexNum " + count, new humanClass("").serialize());
-            worldData.saveConfig();
+                        resolved.apply(villager).showDisguiseOnly();
 
+                        int count = worldData.getConfig().contains("Entity count")
+                                ? worldData.getConfig().getInt("Entity count") + 1
+                                : 1;
 
+                        worldData.getConfig().set("spawnNPC." + count + ".disguise", resolved);
+                        worldData.getConfig().set("spawnNPC." + count + ".location", playerLoc);
+                        worldData.getConfig().set("humanDexNum." + count, new humanClass("").serialize());
+                        worldData.getConfig().set("Entity count", count);
+                        villager.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, count);
+                        worldData.saveConfig();
+
+                        player.sendMessage(Component.text("NPC '" + resolved.username() + "' added!", NamedTextColor.GREEN));
+                    })
+            );
+
+            return true;
         }
 
         if(player.isOp()){
@@ -192,10 +182,9 @@ public class cmds implements CommandExecutor {
                 if(!(rayTraceResult.getHitEntity() instanceof LivingEntity)) return true;
                 LivingEntity tracedEnt = (LivingEntity) rayTraceResult.getHitEntity();
                 if(tracedEnt != null){
-                    if(DisguiseAPI.isDisguised(tracedEnt)) sender.sendMessage("yeah");
                     NamespacedKey key = new NamespacedKey(Torture.plugin, "humanDexNum");
                     int hDexNum = tracedEnt.getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
-                    ConfigurationSection configurationSection = worldData.getConfig().getConfigurationSection("humanDexNum " + hDexNum);
+                    ConfigurationSection configurationSection = worldData.getConfig().getConfigurationSection("humanDexNum." + hDexNum);
                     Map<String, Object> data = configurationSection.getValues(true);
                     player.sendMessage(data.entrySet().stream().findFirst().get().getKey());
                     humanClass human = humanClass.deserialize(data);
@@ -246,7 +235,7 @@ public class cmds implements CommandExecutor {
                         }
                         human.setName(sb.toString());
                     }
-                    worldData.getConfig().set("humanDexNum " + hDexNum, human.serialize());
+                    worldData.getConfig().set("humanDexNum." + hDexNum, human.serialize());
 
                 }
                 worldData.saveConfig();
@@ -392,11 +381,10 @@ public class cmds implements CommandExecutor {
                 if(args.length > 1){
                     if(args[0].equalsIgnoreCase("addMob")){
                         Entity ent = null;
-                        AnimationManager man = new AnimationManager(ent);
-                        PlayerDisguise disguise = new PlayerDisguise("", args[1]);
                         Villager v = (Villager) player.getWorld().spawnEntity(player.getLocation(), EntityType.VILLAGER);
-                        DisguiseAPI.disguiseEntity(v, disguise);
-                        man.setDisguise(DisguiseAPI.parseToString(disguise));
+                        AnimationManager man = new AnimationManager(ent);
+                        PlayerDisguise disguise = Disguises.player(args[1]);
+                        DisguiseSession session = disguise.apply(v);
                         man.setGoal(player.getLocation());
                         Location endFace = player.getEyeLocation();
                         Vector vec = player.getEyeLocation().toVector().normalize().multiply(0.25);

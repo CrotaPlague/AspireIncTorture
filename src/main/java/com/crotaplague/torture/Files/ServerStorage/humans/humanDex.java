@@ -17,8 +17,8 @@ public class humanDex {
     public static humanClass getHuman(int input, LivingEntity entity){
         humanClass human = null;
         List<mobEnums> mobs = new ArrayList<mobEnums>();
-        if (worldData.getConfig().isConfigurationSection("humanDexNum " + input)){
-            ConfigurationSection configurationSection = worldData.getConfig().getConfigurationSection("humanDexNum " + input);
+        if (worldData.getConfig().isConfigurationSection("humanDexNum." + input)){
+            ConfigurationSection configurationSection = worldData.getConfig().getConfigurationSection("humanDexNum." + input);
             Map<String, Object> data = configurationSection.getValues(true);
             human = humanClass.deserialize(data);
             human.setMobEntity(entity);

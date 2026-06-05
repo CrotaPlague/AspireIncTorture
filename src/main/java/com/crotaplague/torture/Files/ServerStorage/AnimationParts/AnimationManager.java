@@ -1,16 +1,18 @@
 package com.crotaplague.torture.Files.ServerStorage.AnimationParts;
 
 import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
+import com.crotaplague.torture.Files.ServerStorage.disguises.Disguise;
+import com.crotaplague.torture.Files.ServerStorage.disguises.DisguiseSession;
+import com.crotaplague.torture.Files.ServerStorage.disguises.Disguises;
 import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Torture;
 import com.destroystokyo.paper.entity.Pathfinder;
-import me.libraryaddict.disguise.DisguiseAPI;
-import me.libraryaddict.disguise.disguisetypes.Disguise;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import org.bukkit.*;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -40,7 +42,7 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
     private String text;
     private Location endFace = null;
     private boolean runSimul = false;
-    String disguise = null;
+    Disguise disguise = null;
     private Location output;
     String comments = null;
     private UUID id; // The ID of the animation mob was spawned in
@@ -79,11 +81,8 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
             Mob m = (Mob) subject;
             NamespacedKey key = new NamespacedKey(Torture.plugin, "AnimationMob");
             m.getPersistentDataContainer().set(key, PersistentDataType.INTEGER_ARRAY, new int[]{goal.getBlockX(), goal.getBlockZ()});
-            try {
-                DisguiseAPI.addCustomDisguise("temp", disguise);
-            }catch(Exception ignored){}
-            Disguise d = DisguiseAPI.getCustomDisguise("temp");
-            DisguiseAPI.disguiseEntity(subject, d);
+            DisguiseSession session = disguise.apply(subject);
+            session.showDisguiseOnly();
         }
         if(goal != null && subject instanceof Player){
             subject.teleport(goal);
@@ -183,7 +182,7 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
      *
      * @param disguise New disguise
      */
-    public void setDisguise(String disguise){this.disguise = disguise;}
+    public void setDisguise(Disguise disguise){this.disguise = disguise;}
 
     /**
      *
@@ -271,7 +270,7 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
     *
     * @return the disguise of the entity
     */
-    public String getDisguise(){return this.disguise;}
+    public Disguise getDisguise(){return this.disguise;}
 
     /**
      *
@@ -353,7 +352,7 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
     public static AnimationManager deserialize(Map<String, Object> map){
         AnimationManager a = new AnimationManager(UUID.fromString((String) map.get("id")));
         if(map.containsKey("goal")) a.setGoal(Location.deserialize((Map<String, Object>) map.get("goal")));
-        if(map.containsKey("disguise")) a.setDisguise((String) map.get("disguise"));
+        if(map.containsKey("disguise")) a.setDisguise((Disguise) map.get("disguise"));
         if(map.containsKey("endFace")) a.setEndFace(Location.deserialize((Map<String, Object>) map.get("endFace")));
         if(map.containsKey("simultaneous")){ a.setSimultaneous();
         }
@@ -376,6 +375,17 @@ public class AnimationManager extends BukkitRunnable implements ConfigurationSer
             a.setPitch((float) map.get("pitch"));
         }
         return a;
+    }
+    public void setPlayerDisguise(String username) {
+        this.disguise = Disguises.player(username);
+    }
+
+    public void setBlockDisguise(Material material) {
+        this.disguise = Disguises.block(material);
+    }
+
+    public void setItemDisguise(ItemStack item) {
+        this.disguise = Disguises.item(item);
     }
 }
 

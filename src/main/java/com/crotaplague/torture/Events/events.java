@@ -9,6 +9,8 @@ import com.crotaplague.torture.Files.ServerStorage.*;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.AnimationManager;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.Stage;
 import com.crotaplague.torture.Files.ServerStorage.ArbitraryClasses.ChainTask;
+import com.crotaplague.torture.Files.ServerStorage.disguises.Disguise;
+import com.crotaplague.torture.Files.ServerStorage.disguises.DisguiseSession;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanDex;
 import com.crotaplague.torture.Files.ServerStorage.items.*;
@@ -19,12 +21,9 @@ import com.destroystokyo.paper.entity.Pathfinder;
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent;
 import com.google.common.util.concurrent.AtomicDouble;
-import me.libraryaddict.disguise.DisguiseAPI;
-import me.libraryaddict.disguise.disguisetypes.Disguise;
-import me.libraryaddict.disguise.utilities.parser.DisguiseParseException;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.world.entity.HumanoidArm;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
@@ -43,19 +42,22 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.BlockIterator;
 import org.bukkit.util.EulerAngle;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -64,6 +66,7 @@ import static com.crotaplague.torture.Torture.*;
 
 
 public class events implements Listener {
+    private static final Logger log = LoggerFactory.getLogger(events.class);
     public static List<String> registeringClick = new ArrayList<String>();
 
 
@@ -283,16 +286,13 @@ public class events implements Listener {
                                         target = currentMob.getOpponentMob();
                                         player.sendMessage("This toby: " + target);
                                     }
-                                    TextComponent ret = applyMoveTo(currentMob, target, move, battle);
-                                    if(ret != null){
-                                        player.sendMessage(ret);
-                                    }
+                                    randomScripts.applyMoveTo(currentMob, target, move, battle);
                                 }
                                 else{
                                     battleEngine.showTargetMenu(player, battle);
                                     return;
                                 }
-                                confirmingAMove(battle, trainer, move);
+                                confirmingAMove(battle, trainer, NextMove.fromMove(move, trainer.getCurrentSelecting()));
                                 if(battle.allReady()){
                                     battle.doRound();
                                 }else{
@@ -346,7 +346,7 @@ public class events implements Listener {
                     if(b.isWild()) {
                         ShulkerItem item = file.getPlayerBag().getShulkerShells().get(event.getSlot());
                         humanClass.Trainer t = b.getTrainer(player);
-                        t.getCurrentSelecting().setNextMove(item);
+                        t.getCurrentSelecting().setNextMove(NextMove.fromItem(item, t.getCurrentSelecting()));
                         b.setMobStatus(t.getCurrentSelecting());
                     }
                 }
@@ -366,7 +366,7 @@ public class events implements Listener {
                         humanClass.Trainer trainer = battle.getTrainer(player);
                         mobEnums newMob = trainer.getMobs().get(event.getSlot()-1);
                         player.sendMessage("Currently selecting: " + trainer.getCurrentSelecting().getName());
-                        trainer.getCurrentSelecting().setNextMove(newMob);
+                        trainer.getCurrentSelecting().setNextMove(NextMove.fromSwap(newMob));
                         player.sendMessage("new move: " + newMob.getName());
                         trainer.setStatus(true);
                         SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
@@ -419,7 +419,7 @@ public class events implements Listener {
                         return;
                     }
                 }
-                trainer.getCurrentSelecting().setNextMove(item);
+                trainer.getCurrentSelecting().setNextMove(NextMove.fromItem(item, trainer.getCurrentSelecting()));
                 trainer.setStatus(true);
                 SaveFile file = playerSaveFiles.get(player.getUniqueId() + "");
                 if(battle.nextUnready(trainer) == null) {
@@ -452,7 +452,7 @@ public class events implements Listener {
         ChainTask removalTask = onComplete -> {
             // this runs immediately on the main thread,
             // and calls onComplete() when done
-            removeMob(current, onComplete::run);
+            battleEngine.removeMob(current, onComplete::run);
         };
 
         // Step 2: spawn+setup new mob
@@ -521,49 +521,75 @@ public class events implements Listener {
             playerHasJoined = true;
             int counter = worldData.getConfig().getInt("Entity count");
             player.getWorld().getEntities().forEach(entity -> {if(!(entity instanceof Player || entity instanceof ItemFrame)){ entity.getLocation().getChunk().load(true); entity.remove(); Bukkit.getLogger().log(Level.WARNING, "TRUUUUE");}});
-            for(int i = 1; i<=counter; i++){ //spawn them all, needs entity type location and data
-                if(worldData.getConfig().isConfigurationSection("spawnNPC " + i)){
-                    ConfigurationSection configurationSection = worldData.getConfig().getConfigurationSection("spawnNPC " + i);
-                    Map<String, Object> data = configurationSection.getValues(true);
-                    String str = data.entrySet().stream().findFirst().get().getKey();
-                    Villager mob = (Villager) player.getWorld().spawnEntity((Location) data.entrySet().stream().findFirst().get().getValue(), EntityType.VILLAGER, CreatureSpawnEvent.SpawnReason.CUSTOM, vil -> {((Villager) vil).setAI(false); ((Villager) vil).setAdult();});
-                    mob.getChunk().load();
-                    final int finalI = i;
-                    final Disguise disguise;
-                    try {
-                        DisguiseAPI.addCustomDisguise("tempDis" + finalI, str);
-                    } catch (DisguiseParseException e) {
-                        e.printStackTrace();
-                    }
-                    disguise = DisguiseAPI.getCustomDisguise("tempDis" + finalI);
-                    DisguiseAPI.disguiseToAll(mob, disguise);
-                    final BukkitTask[] task = new BukkitTask[1];
-                    task[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-                        if (!DisguiseAPI.isDisguised(mob)) {
-                            DisguiseAPI.disguiseToAll(mob, disguise);
-                        } else {
-                            if(mob.isValid()) {
-                                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                    DisguiseAPI.removeCustomDisguise("tempDis" + finalI);
-                                }, 5L);
-                                task[0].cancel();
-                            }
-                        }
-                    }, 5L, 1L);
+            for (int i = 1; i <= counter; i++) {
 
-                    NamespacedKey key = new NamespacedKey(plugin, "humanDexNum");
-                    mob.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, i);
-                    ConfigurationSection section = worldData.getConfig().getConfigurationSection("humanDexNum " + i);
-                    data = section.getValues(true);
-                    humanClass human = humanClass.deserialize(data);
-                    human.setMobEntity(mob);
-                    if(human.getType() == 2){
-                        raycasting.add(mob);
-                    }
-                }else{
+                ConfigurationSection section =
+                        worldData.getConfig().getConfigurationSection(
+                                "spawnNPC." + i
+                        );
+
+                if (section == null) {
                     break;
                 }
 
+                Location location =
+                        section.getLocation("location");
+
+                Disguise disguise =
+                        (Disguise) section.get("disguise");
+
+                if (location == null || disguise == null) {
+                    continue;
+                }
+
+                Villager mob = (Villager) player.getWorld().spawnEntity(
+                        location,
+                        EntityType.VILLAGER,
+                        CreatureSpawnEvent.SpawnReason.CUSTOM,
+                        vil -> {
+                            ((Villager) vil).setAI(false);
+                            ((Villager) vil).setAdult();
+                            ((Villager) vil).setSilent(true);
+                        }
+                );
+                Bukkit.getLogger().log(Level.INFO, "The UUID: " + mob.getUniqueId());
+
+                mob.getChunk().load();
+
+                // Apply disguise
+                DisguiseSession session = disguise.apply(mob);
+
+                // Hide real entity automatically
+                session.showDisguiseOnly();
+
+                NamespacedKey key =
+                        new NamespacedKey(plugin, "humanDexNum");
+
+                mob.getPersistentDataContainer().set(
+                        key,
+                        PersistentDataType.INTEGER,
+                        i
+                );
+
+                ConfigurationSection humanSection =
+                        worldData.getConfig().getConfigurationSection(
+                                "humanDexNum." + i
+                        );
+
+                if (humanSection != null) {
+
+                    Map<String, Object> data =
+                            humanSection.getValues(true);
+
+                    humanClass human =
+                            humanClass.deserialize(data);
+
+                    human.setMobEntity(mob);
+
+                    if (human.getType() == 2) {
+                        raycasting.add(mob);
+                    }
+                }
             }
             player.removePotionEffect(PotionEffectType.JUMP_BOOST);
             player.setFoodLevel(20);
@@ -612,19 +638,16 @@ public class events implements Listener {
                     //player.getWorld().spawnEntity();
                 }
             }
-        }else{
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                for (Entity ent : player.getWorld().getEntities()) {
-                    if (DisguiseAPI.isDisguised(ent)) {
-                        DisguiseAPI.disguiseToAll(ent, DisguiseAPI.getDisguise(ent));
-                    }
-                }
-            }, 8L);
         }
+        new BukkitRunnable() {
+            int attempts = 0;
+            @Override
+            public void run() {
+                disguiseManager.sync(player);
+                if (++attempts >= 15) cancel();
+            }
+        }.runTaskTimer(plugin, 5L, 5L);
         player.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.42);
-
-
-
 
         player.setWalkSpeed(0.2f);
         String fullPath = Torture.path + "saves/player-" + player.getUniqueId() + ".yml.zst";
@@ -659,6 +682,120 @@ public class events implements Listener {
         }
         timeTracker.put(player, 0);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private static class Lair {
+        public Lair instance;
+
+        protected Lair(boolean isEvil) {
+            instance = this;
+        }
+
+        protected void summon(Object object, int quantity) {
+            for (int i = 0; i < quantity; i++) {
+                if (object instanceof LivingEntity) {
+                    System.out.println("Summoning " + object + " " + i);
+                }
+            }
+        }
+
+        protected void uploadViruses(boolean condition) {
+            if (!condition) return;
+            System.out.println("uploading viruses... >:3");
+        }
+    }
+
+    public static class RobotShark extends net.minecraft.world.entity.LivingEntity {
+        public RobotShark(net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.LivingEntity> type) {
+            super(type, null);
+        }
+
+        @Override
+        public @Nullable HumanoidArm getMainArm() {
+            return null; // mini dont know wat tis
+        }
+    }
+
+    public static class OrbitalStrike {
+        private final boolean isEvil;
+        private final double power;
+        private final int quantity;
+
+        public OrbitalStrike(boolean moral, double power, int quantity) {
+            this.isEvil = !moral;
+            this.power = power;
+            this.quantity = quantity;
+        }
+
+        public boolean doStrike() {
+            return isEvil && !(power <= 0) && quantity > 0;
+        }
+    }
+
+    // execute evil.script here for world domination - mini
+    private void evilScript() {
+        Lair lair = new Lair(true);
+        lair.summon(new RobotShark(net.minecraft.world.entity.EntityType.DOLPHIN), 100);
+        lair.uploadViruses(true);
+        lair.summon(new OrbitalStrike(false, 1.0, 8), 1);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public static Boolean pcBoxCode(Player player, int slotNum, ClickType clickType, Inventory inventory, InventoryView inventoryView, InventoryClickEvent event) {
         ItemStack item = event.getCurrentItem();
@@ -860,7 +997,7 @@ public class events implements Listener {
                     }
 
                     NamespacedKey key = new NamespacedKey(getInstance(), "humanDexNum");
-                    LivingEntity entity = (LivingEntity) playerSpecifics.get(player.getUniqueId() + " walkingEntityForPVE");
+                    LivingEntity entity = file.getWalkingMob();
                     Integer dNum = entity.getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
                     Bukkit.getPlayer("CrotaPlague").sendMessage("Well this is the acquired dex num: " + dNum);
                     humanClass human = humanDex.getHuman(dNum, entity);
@@ -957,30 +1094,6 @@ public class events implements Listener {
                 }else{
                     player.hideEntity(Torture.plugin, entity);
                 }
-            }
-        }
-        if(entity.getType() == EntityType.VILLAGER){
-            NamespacedKey key = new NamespacedKey(plugin, "BESAT");
-            if(entity.getPersistentDataContainer().has(key)){
-                Server serv = Bukkit.getServer();
-                Merchant merchant = serv.createMerchant(DisguiseAPI.getDisguise(entity).getDisguiseName());
-                ItemStack item = new ItemStack(Material.LEATHER_CHESTPLATE);
-                ItemMeta meta = item.getItemMeta();
-                meta.setDisplayName("§f" + entity.getPersistentDataContainer().get(key,PersistentDataType.STRING) + " merch");item.setItemMeta(meta);
-                MerchantRecipe rec = new MerchantRecipe(item, 999);
-
-
-
-                rec.getResult().setItemMeta(meta);
-                rec.getResult().setType(Material.LEATHER_CHESTPLATE);
-                List<ItemStack> stack = new ArrayList<>();
-                stack.add(new ItemStack(Material.EMERALD, 2));
-                stack.add(new ItemStack(Material.DIAMOND, 1));
-                rec.setIngredients(stack);
-                List<MerchantRecipe> recipe = new ArrayList<>(); recipe.add(rec);
-                merchant.setRecipes(recipe);
-
-                player.openMerchant(merchant, true);
             }
         }
     }
@@ -1134,13 +1247,8 @@ public class events implements Listener {
                 Villager vil = (Villager) world.spawnEntity(an.getGoal(), EntityType.VILLAGER);
                 vil.setAI(false);
                 vil.setSilent(true);          // creates villager and turn of its AI and sets it to silent
-                try {
-                    DisguiseAPI.addCustomDisguise("tempDis" + i, an.getDisguise());
-                } catch (DisguiseParseException e) {
-                    e.printStackTrace();
-                }
-                Disguise dis = DisguiseAPI.getCustomDisguise("tempDis" + i); // generates and sets its disguise
-                DisguiseAPI.disguiseEntity(vil, dis);
+                DisguiseSession session = an.getDisguise().apply(vil);
+                session.showDisguiseOnly();
                 an.setActor(vil);
                 if(!mapped.containsKey(an.getId())){
                     mapped.put(an.getId(), an);
@@ -1231,13 +1339,8 @@ public class events implements Listener {
             Villager vil = (Villager) world.spawnEntity(man.getGoal(), EntityType.VILLAGER);
             vil.setAI(false);
             vil.setSilent(true);
-            try {
-                DisguiseAPI.addCustomDisguise("tempDis", man.getDisguise());
-            } catch (DisguiseParseException e) {
-                e.printStackTrace();
-            }
-            Disguise dis = DisguiseAPI.getCustomDisguise("tempDis");
-            DisguiseAPI.disguiseEntity(vil, dis);
+            DisguiseSession session = man.getDisguise().apply(vil);
+            session.showDisguiseOnly();
             man.setActor(vil);
         }else if(man.getGoal() != null && man.isCameraTp()){
             player.teleport(man.getGoal());
@@ -1270,7 +1373,7 @@ public class events implements Listener {
         event.getDrops().clear();
     }
 
-    public static void confirmingAMove(battleClass b, humanClass.Trainer t, Object selection){
+    public static void confirmingAMove(battleClass b, humanClass.Trainer t, NextMove selection){
         SaveFile save = playerSaveFiles.get(t.getSelf().getUniqueId() + "");
         t.getCurrentSelecting().setNextMove(selection);
         b.setMobStatus(t.getCurrentSelecting());
@@ -1279,6 +1382,10 @@ public class events implements Listener {
         }else{
             t.setCurrentSelecting(b.nextUnready(t));
         }
+    }
+
+    public static double lerp(double start, double end, double percent) {
+        return start + (end - start) * percent;
     }
 
     @EventHandler

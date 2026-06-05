@@ -1,5 +1,7 @@
 package com.crotaplague.torture.Files.ServerStorage.items;
 
+import com.crotaplague.torture.Files.ServerStorage.specialConditions.SpecialConditions;
+import com.crotaplague.torture.Torture;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -8,9 +10,27 @@ import java.util.Map;
 public class HoldingItems extends Sellable implements Cloneable{
     private double activatePercent;
     private boolean onAttack;
+    private boolean affectsTeammate;
+    private boolean affectsBothEnemies;
+    private int[] holderStatsAffected;
+    private int[] attackerStatsAffected;
+    private double changeFlinchPercent;
+    private SpecialConditions specialCondition;
+
     public HoldingItems(TItemType type, int amount, int dexNum, ItemStack displayItem, String name) {
         super(type, amount, dexNum, displayItem, name);
     }
+
+    public HoldingItems(){
+        super(TItemType.HOLDING_ITEMS, -1, -1, null, "");
+        affectsTeammate = false;
+        affectsBothEnemies = false;
+        holderStatsAffected = new int[Torture.statLength];
+        attackerStatsAffected = new int[Torture.statLength];
+        changeFlinchPercent = 0;
+        specialCondition = null;
+    }
+
     public HoldingItems(HoldingItems hold) {
         super(hold);
     }

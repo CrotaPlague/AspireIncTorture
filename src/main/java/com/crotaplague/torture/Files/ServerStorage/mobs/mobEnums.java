@@ -1,6 +1,7 @@
 package com.crotaplague.torture.Files.ServerStorage.mobs;
 
 import com.crotaplague.torture.Files.ServerScriptService.randomScripts;
+import com.crotaplague.torture.Files.ServerStorage.NextMove;
 import com.crotaplague.torture.Files.ServerStorage.Pair;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
 import com.crotaplague.torture.Files.ServerStorage.items.HoldingItems;
@@ -8,7 +9,7 @@ import com.crotaplague.torture.Files.ServerStorage.items.ItemClass;
 import com.crotaplague.torture.Files.ServerStorage.items.ShulkerItem;
 import com.crotaplague.torture.Files.ServerStorage.items.TItemManager;
 import com.crotaplague.torture.Files.ServerStorage.moveClass;
-import com.crotaplague.torture.Files.ServerStorage.specialConditions.specialConditions;
+import com.crotaplague.torture.Files.ServerStorage.specialConditions.SpecialConditions;
 import com.crotaplague.torture.Torture;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -42,7 +43,7 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     private int level;
     private int exp;
     private int currentHp;
-    private specialConditions condition = null;
+    private SpecialConditions condition = null;
     private ExpEarnType expEarnType;
     private humanClass.Trainer trainer;
     private int baseExpDrop = 0;
@@ -56,7 +57,7 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     private int[] stages = {0,0,0,0,0,0,0};
     private int catchResiliance = 5;
     private ShulkerItem mobBall = TItemManager.defaultCatchDefault;
-    private Object nextMove;
+    private NextMove nextMove;
     private char gender;
     private String nickname;
     private Nature nature;
@@ -65,18 +66,30 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     public enum MHTypes {
         NORMAL, WATER, FIRE, EARTH, MAGIC, UNDEAD, SHADOW, METAL, FLYING, FROST;
 
-        public static float getEffectiveness(MHTypes one, MHTypes two) {
+        private static float[][] effectivenessMatrix;
+
+        private static void loadEffectiveness() {
+            if (effectivenessMatrix != null) return;
+            effectivenessMatrix = new float[values().length][values().length];
             File file = new File(Torture.data.getFile().getParent() + "\\Types.csv");
             try {
                 List<String> lines = Files.readAllLines(file.toPath());
-                String object = lines.get(one.ordinal() + 1); // +1 to skip header
-                object = object.split(",")[two.ordinal() + 1]; // +1 to skip row name
-                object = object.replace("x", "");
-                return Float.valueOf(object);
+                for (int i = 0; i < values().length; i++) {
+                    String line = lines.get(i + 1);
+                    String[] parts = line.split(",");
+                    for (int j = 0; j < values().length; j++) {
+                        String val = parts[j + 1].replace("x", "");
+                        effectivenessMatrix[i][j] = Float.parseFloat(val);
+                    }
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            return 0;
+        }
+
+        public static float getEffectiveness(MHTypes one, MHTypes two) {
+            loadEffectiveness();
+            return effectivenessMatrix[one.ordinal()][two.ordinal()];
         }
         public static MHTypes fromInt(int a){
             if(a > -1 && values().length > a){
@@ -253,8 +266,20 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     }
 
 
-    public void setNextMove(Object o){this.nextMove = o;}
-    public Object getNextMove(){return this.nextMove;}
+    public void setNextMove(Object selection){
+        NextMove resolved = NextMove.fromSelection(selection, this);
+        if(resolved != null){
+            resolved.setUser(this);
+        }
+        this.nextMove = resolved;
+    }
+    public void setNextMove(NextMove nextMove){
+        if(nextMove != null){
+            nextMove.setUser(this);
+        }
+        this.nextMove = nextMove;
+    }
+    public NextMove getNextMove(){return this.nextMove;}
     public char getGender(){return this.gender;}
     public char getGenderAsSymbol(){
         return switch (gender){
@@ -458,6 +483,7 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
      * @return the mob's current hp
      */
     public int getCurrentHp(){return this.currentHp;}
+    public boolean isDead(){return this.currentHp <= 0;}
 
     /**
      *
@@ -496,8 +522,8 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
     public Nature getNature(){return this.nature;}
     public HoldingItems getHeldItem(){return this.heldItem;}
     public void setHeldItem(HoldingItems item){this.heldItem = item.clone();}
-    public specialConditions getCondition(){return this.condition;}
-    public void setCondition(specialConditions condition){this.condition = condition;}
+    public SpecialConditions getCondition(){return this.condition;}
+    public void setCondition(SpecialConditions condition){this.condition = condition;}
     public void setBaseExpDrop(int exp){this.baseExpDrop = exp;}
     public int getBaseExpDrop(){return this.baseExpDrop;}
     public int getBattleSpot(){return this.battleSpot;}
@@ -615,7 +641,7 @@ public class mobEnums implements ConfigurationSerializable, Cloneable {
         }
 
         if (map.get("condition") != null)
-            mob.setCondition((specialConditions) map.get("condition"));
+            mob.setCondition((SpecialConditions) map.get("condition"));
 
         if (map.containsKey("slotInPc"))
             mob.setSlotInPc((int) map.get("slotInPc"));

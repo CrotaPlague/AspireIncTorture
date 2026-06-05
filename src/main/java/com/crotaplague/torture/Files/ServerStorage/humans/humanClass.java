@@ -1,6 +1,7 @@
 package com.crotaplague.torture.Files.ServerStorage.humans;
 
 import com.crotaplague.torture.Files.ServerStorage.SaveFile;
+import com.crotaplague.torture.Files.ServerStorage.NextMove;
 import com.crotaplague.torture.Files.ServerStorage.battleClass;
 import com.crotaplague.torture.Files.ServerStorage.battleTypes;
 import com.crotaplague.torture.Files.ServerStorage.mobs.mobEnums;
@@ -511,7 +512,16 @@ public class humanClass implements ConfigurationSerializable, NPC{
         public mobEnums getCurrentSelecting(){return this.currentSelecting;}
         public void setCurrentSelecting(mobEnums currentSelecting){this.currentSelecting = currentSelecting; thisMob.sendMessage("Changing selection: " + currentSelecting);}
         public void clearMobMoves(){for(mobEnums m : mobs){if(m != null) m.setNextMove(null);}}
-        public int nextMoveSwaps(){int i = 0; for(mobEnums m : mobs){if(m.getNextMove() instanceof mobEnums) i++;} return i;}
+        public int nextMoveSwaps(){
+            int i = 0;
+            for(mobEnums m : mobs){
+                NextMove nextMove = m.getNextMove();
+                if(nextMove != null && nextMove.isSwap()){
+                    i++;
+                }
+            }
+            return i;
+        }
         public boolean isMobOf(Entity ent){
             for(mobEnums current : mobsInPlay){
                 if(current.getSelf() != null && current.getSelf().getUniqueId().equals(ent.getUniqueId()) ){

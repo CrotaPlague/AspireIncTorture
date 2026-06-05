@@ -2,6 +2,7 @@ package com.crotaplague.torture.Files.ServerScriptService;
 
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.AnimationManager;
 import com.crotaplague.torture.Files.ServerStorage.AnimationParts.Stage;
+import com.crotaplague.torture.Files.ServerStorage.NextMove;
 import com.crotaplague.torture.Files.ServerStorage.SaveFile;
 import com.crotaplague.torture.Files.ServerStorage.battleClass;
 import com.crotaplague.torture.Files.ServerStorage.humans.humanClass;
@@ -462,7 +463,7 @@ public class randomScripts {
         }
         move.setMobTarget(target);
         b.setMobStatus(user);
-        confirmingAMove(b, user.getTrainer(), move);
+        confirmingAMove(b, user.getTrainer(), NextMove.fromMove(move, user));
         return null;
     }
 
